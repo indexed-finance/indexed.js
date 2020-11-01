@@ -3,6 +3,7 @@ export * from './multicall';
 import * as bmath from './bmath';
 import { Pool } from './types';
 import { PoolHelper } from './pool-helper';
+export * from './utils/bignumber';
 export { bmath, getPools, PoolHelper };
 
 export async function getAllHelpers(provider: any): Promise<{
