@@ -1,14 +1,12 @@
 import { Interface } from '@ethersproject/abi';
-import { InitializedPoolUpdate, TokenInfo } from './types';
+import { InitializedPoolUpdate, PoolTokenUpdate } from './types';
 import { CallInput, MultiCall } from '@indexed-finance/multicall';
 import * as bmath from './bmath';
 import { AddressLike, toAddress } from './utils/address';
 import { BigNumber } from './utils/bignumber';
 import { Provider } from '@ethersproject/providers';
 
-/* totalSupply
-maxTotalSupply
-swapFee */
+
 
 export async function getCurrentPoolData(
   provider: Provider,
@@ -22,7 +20,7 @@ export async function getCurrentPoolData(
     tokenAddresses.push(toAddress(t));
   });
 
-  const ipoolAbi = require('./abi/ipool.json');
+  const ipoolAbi = require('./abi/IPool.json');
   const iface = new Interface(ipoolAbi);
   const multi = new MultiCall(provider);
 
@@ -36,7 +34,7 @@ export async function getCurrentPoolData(
     calls.push({ target: poolAddress, function: 'getBalance', args: [token] });
     calls.push({ target: poolAddress, function: 'getUsedBalance', args: [token] });
     calls.push({ target: poolAddress, function: 'getDenormalizedWeight', args: [token] });
-  }
+}
   const response = await multi.multiCall(iface, calls);
   const totalDenorm = bmath.bnum(response[0]);
   const totalSupply = bmath.bnum(response[1]);
@@ -47,7 +45,7 @@ export async function getCurrentPoolData(
     let chunk = response.slice(i, i + 3);
     chunkResponse.push(chunk);
   }
-  const tokenInfos: TokenInfo[] = [];
+  const tokenInfos: PoolTokenUpdate[] = [];
   chunkResponse.forEach((r, j) => {
     let address = tokenAddresses[j];
     let balance = bmath.bnum(r[0]);
