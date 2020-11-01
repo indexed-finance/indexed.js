@@ -47,7 +47,7 @@ export type InitializedPoolUpdate = {
   totalSupply: BigNumber;
   maxTotalSupply: BigNumber;
   swapFee: BigNumber;
-  tokens: TokenInfo[];
+  tokens: PoolTokenUpdate[];
 }
 
 /* ===== Pool Types ===== */
@@ -64,7 +64,7 @@ export type UninitializedPool = BasePool & {
 export type PoolInitializer = {
   address: string;
   pool: string;
-  tokens: PoolInitializerToken[];
+  tokens: InitializerToken[];
   totalCreditedWETH: BigNumber;
 };
 
@@ -94,11 +94,12 @@ export type PoolToken = Token & {
   desiredDenorm: BigNumber;
 };
 
-export type PoolInitializerToken = Token & {
+export type InitializerToken = Token & {
+  targetBalance: BigNumber;
   amountRemaining: BigNumber;
 };
 
-export type TokenInfo = {
+export type PoolTokenUpdate = {
   // token address
   address: string;
   // actual balance
@@ -109,4 +110,8 @@ export type TokenInfo = {
   usedWeight: BigNumber;
   // denormalized weight if ready, minimum denorm if not
   usedDenorm: BigNumber;
+}
+
+export type InitializerTokenUpdate = {
+  amountRemaining: BigNumber;
 }
