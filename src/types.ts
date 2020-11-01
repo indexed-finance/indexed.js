@@ -1,0 +1,112 @@
+import { BigNumber } from './utils/bignumber';
+
+export interface SwapAmount {
+  pool: string;
+  amount: BigNumber;
+}
+
+export interface EffectivePrice {
+  price?: BigNumber;
+  id?: string;
+  maxAmount?: string;
+  swap?: string[];
+  amounts?: BigNumber[];
+  bestPools?: string[];
+}
+
+export type Swap = {
+  pool: string;
+  tokenInParam: string;
+  tokenOutParam: string;
+  maxPrice: string;
+};
+
+/* ===== Base Types ===== */
+type BasePool = {
+  address: string;
+  name: string;
+  symbol: string;
+  size: number;
+  isPublic: boolean;
+  totalWeight: BigNumber;
+  totalSupply: BigNumber;
+  maxTotalSupply: BigNumber;
+  swapFee: BigNumber;
+};
+
+export type Token = {
+  address: string;
+  decimals: number;
+  name: string;
+  symbol: string;
+  balance: BigNumber;
+};
+
+export type InitializedPoolUpdate = {
+  totalWeight: BigNumber;
+  totalSupply: BigNumber;
+  maxTotalSupply: BigNumber;
+  swapFee: BigNumber;
+  tokens: TokenInfo[];
+}
+
+/* ===== Pool Types ===== */
+export type InitializedPool = BasePool & {
+  isPublic: true;
+  tokens: PoolToken[];
+};
+
+export type UninitializedPool = BasePool & {
+  isPublic: false;
+  initializer: PoolInitializer;
+};
+
+export type PoolInitializer = {
+  address: string;
+  pool: string;
+  tokens: PoolInitializerToken[];
+  totalCreditedWETH: BigNumber;
+};
+
+export type Pool = InitializedPool | UninitializedPool;
+
+/* ===== Token Types ===== */
+export type PoolToken = Token & {
+  // pool is initialized
+  ready: boolean;
+  // actual balance
+  balance: BigNumber;
+  // minimum balance, if any
+  minimumBalance?: BigNumber;
+  // balance if ready, minimumBalance if not
+  usedBalance: BigNumber;
+  // normalized weight
+  usedWeight: BigNumber;
+  // real denorm if ready, minimum denorm if not
+  usedDenorm: BigNumber;
+  // normalized weight
+  weight: BigNumber;
+  // denormalized weight
+  denorm: BigNumber;
+  // normalized target weight
+  desiredWeight: BigNumber;
+  // denormalized target weight
+  desiredDenorm: BigNumber;
+};
+
+export type PoolInitializerToken = Token & {
+  amountRemaining: BigNumber;
+};
+
+export type TokenInfo = {
+  // token address
+  address: string;
+  // actual balance
+  balance: BigNumber;
+  // balance if ready, minimumBalance if not
+  usedBalance: BigNumber;
+  // normalized weight
+  usedWeight: BigNumber;
+  // denormalized weight if ready, minimum denorm if not
+  usedDenorm: BigNumber;
+}
