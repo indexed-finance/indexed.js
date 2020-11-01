@@ -1,8 +1,11 @@
 import fetch from 'isomorphic-fetch';
 import * as bmath from './bmath';
 import { Pool, Token } from './types';
+import { BigNumber } from './utils/bignumber';
 
-const SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-v1';
+const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-v1';
+const UNISWAP_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2';
+const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/samgos/uniswap-v2-rinkeby';
 
 const poolQuery = `
 id
@@ -23,6 +26,7 @@ poolInitializer {
     name
     symbol
     balance
+    targetBalance
     amountRemaining
   }
 }
@@ -38,8 +42,8 @@ tokens {
 }
 `;
 
-const executeQuery = async (query: string): Promise<any> => {
-  const response = await fetch(SUBGRAPH_URL, {
+const executeQuery = async (query: string, url: string = INDEXED_SUBGRAPH_URL): Promise<any> => {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -145,6 +149,7 @@ export const parsePoolData = (
       p.poolInitializer.tokens.forEach((t) => {
         obj.initializer.tokens.push({
           ...toBaseToken(t),
+          targetBalance: bmath.bnum(t.targetBalance),
           amountRemaining: bmath.bnum(t.amountRemaining)
         })
       });
@@ -154,3 +159,18 @@ export const parsePoolData = (
 
   return poolData;
 };
+
+const tokenDayDataQuery = (tokenAddress, days) => `
+{
+  tokenDayDatas(orderBy: date, orderDirection: desc, first: ${days}, where: { token: "${tokenAddress}" }) {
+    date
+    priceUSD
+  }
+}
+`
+
+export async function getTokenPrice(address: string): Promise<BigNumber> {
+  const { tokenDayDatas } = await executeQuery(UNISWAP_SUBGRAPH_URL_RINKEBY, tokenDayDataQuery(address, 1));
+  const tokenDayData = tokenDayDatas[0];
+  return bmath.bnum(tokenDayData.priceUSD);
+}
