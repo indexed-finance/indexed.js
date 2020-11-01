@@ -5,6 +5,7 @@ import { InitializedPool, PoolToken } from "./types";
 import { BigNumber, BigNumberish, formatBalance } from './utils/bignumber';
 
 export type TokenAmount = {
+  address: string;
   symbol: string;
   decimals: number;
   amount: BigNumber;
@@ -65,9 +66,18 @@ export class PoolHelper {
     throw new Error(`Token with symbol ${symbol} not found in pool.`);
   }
 
-  async getJoinRateSingle(tokenSymbol: string, poolTokensToMint: BigNumberish): Promise<TokenAmount> {
+  getTokenByAddress(address: string): PoolToken {
+    for (let token of this.tokens) {
+      if (token.address.toLowerCase() == address.toLowerCase()) {
+        return token;
+      }
+    }
+    throw new Error(`Token with address ${address} not found in pool.`);
+  }
+
+  async getJoinRateSingle(address: string, poolTokensToMint: BigNumberish): Promise<TokenAmount> {
     if (this.shouldUpdate) await this.update();
-    const token = this.getTokenBySymbol(tokenSymbol);
+    const token = this.getTokenByAddress(address);
     const amountIn = calcSingleInGivenPoolOut(
       token.usedBalance,
       token.usedDenorm,
@@ -77,6 +87,7 @@ export class PoolHelper {
       this.pool.swapFee
     );
     return {
+      address,
       symbol: token.symbol,
       amount: amountIn,
       decimals: token.decimals,
@@ -86,30 +97,28 @@ export class PoolHelper {
 
   async getJoinRateMulti(poolTokensToMint: BigNumberish): Promise<TokenAmount[]> {
     if (this.shouldUpdate) await this.update();
-    const symbols: string[] = [];
-    const decimals: number[] = [];
     const usedBalances: BigNumber[] = [];
+    const partials: { address: string, symbol: string, decimals: number }[] = [];
     for (let token of this.tokens) {
-      symbols.push(token.symbol);
-      decimals.push(token.decimals);
-      usedBalances.push(token.usedBalance);
+      const { symbol, address, decimals, usedBalance } = token;
+      partials.push(Object.assign({}, { symbol, address, decimals }));
+      usedBalances.push(new BigNumber(usedBalance))
     }
     const poolAmountOut = bnum(poolTokensToMint);
     const amounts = calcAllInGivenPoolOut(usedBalances, this.pool.totalSupply, poolAmountOut);
     return amounts.reduce((arr, amount, i) => [
       ...arr,
       {
+        ...partials[i],
         amount,
-        symbol: symbols[i],
-        decimals: decimals[i],
-        displayAmount: formatBalance(amount, decimals[i], 4)
+        displayAmount: formatBalance(amount, partials[i].decimals, 4)
       }
     ], []);
   }
 
-  async getLeaveRateSingle(tokenSymbol: string, poolTokensToBurn: BigNumberish): Promise<TokenAmount> {
+  async getLeaveRateSingle(address: string, poolTokensToBurn: BigNumberish): Promise<TokenAmount> {
     if (this.shouldUpdate) await this.update();
-    const token = this.getTokenBySymbol(tokenSymbol);
+    const token = this.getTokenByAddress(address);
     if (!token.ready) {
       throw Error(`Can not exit into token which is not initialized.`);
     }
@@ -122,8 +131,9 @@ export class PoolHelper {
       this.pool.swapFee
     );
     return {
+      address,
       amount: amountOut,
-      symbol: tokenSymbol,
+      symbol: token.symbol,
       displayAmount: formatBalance(amountOut, token.decimals, 4),
       decimals: token.decimals
     };
@@ -131,25 +141,23 @@ export class PoolHelper {
 
   async getLeaveRateMulti(poolTokensToBurn: BigNumberish): Promise<TokenAmount[]> {
     if (this.shouldUpdate) await this.update();
-    const symbols: string[] = [];
-    const decimals: number[] = [];
     const balances: BigNumber[] = [];
     const denorms: BigNumber[] = [];
+    const partials: { address: string, symbol: string, decimals: number }[] = [];
     for (let token of this.tokens) {
-      symbols.push(token.symbol);
-      decimals.push(token.decimals);
-      balances.push(token.balance);
-      denorms.push(token.denorm);
+      const { symbol, address, decimals, balance, denorm } = token;
+      partials.push(Object.assign({}, { symbol, address, decimals }));
+      balances.push(new BigNumber(balance));
+      denorms.push(new BigNumber(denorm));
     }
     const poolAmountOut = bnum(poolTokensToBurn);
     const amounts = calcAllOutGivenPoolIn(balances, denorms, this.pool.totalSupply, poolAmountOut);
     return amounts.reduce((arr, amount, i) => [
       ...arr,
       {
+        ...partials[i],
         amount,
-        symbol: symbols[i],
-        decimals: decimals[i],
-        displayAmount: formatBalance(amount, decimals[i], 4)
+        displayAmount: formatBalance(amount, partials[i].decimals, 4)
       }
     ], []);
   }

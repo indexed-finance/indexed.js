@@ -44,7 +44,7 @@ describe('PoolHelper', async () => {
       await token.token.methods.getFreeTokens(from, maximumAmountIn).send({ from });
       await token.token.methods.approve(poolInfo.address, maximumAmountIn).send({ from });
       const amountInExpected = await pool.methods.joinswapPoolAmountOut(token.address, poolAmountOut, maximumAmountIn).call();
-      const { amount, decimals, displayAmount, symbol } = await helper.getJoinRateSingle(token.symbol, poolAmountOut);
+      const { amount, decimals, displayAmount, symbol } = await helper.getJoinRateSingle(token.address, poolAmountOut);
       expect(symbol).to.eq(token.symbol);
       expect(decimals).to.eq(18);
       expect(amount.eq(amountInExpected)).to.be.true;
@@ -78,7 +78,7 @@ describe('PoolHelper', async () => {
         poolAmountIn,
         poolInfo.swapFee
       );
-      const { amount, decimals, displayAmount, symbol } = await helper.getLeaveRateSingle(token.symbol, poolAmountIn);
+      const { amount, decimals, displayAmount, symbol } = await helper.getLeaveRateSingle(token.address, poolAmountIn);
       expect(symbol).to.eq(token.symbol);
       expect(decimals).to.eq(18);
       expect(amount.eq(amountOutExpected)).to.be.true;
