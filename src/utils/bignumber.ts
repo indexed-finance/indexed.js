@@ -25,6 +25,10 @@ export function toTokenAmount(val: BigNumberish, decimals: number): BigNumber {
   return scale(bnum(val.toString()), decimals).integerValue();
 }
 
+export function toHex(val: BigNumber): string {
+  return `0x${val.toString(16)}`;
+}
+
 export const formatBalance = (
   balance: BigNumber,
   decimals: number,
