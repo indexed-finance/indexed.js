@@ -202,11 +202,11 @@ export class InitializerHelper {
     });
     const ethValue = await oracle['computeAverageEthForTokens(address[],uint256[],uint256,uint256)'](
       tokens.map(toAddress),
-      amountsIn,
+      amountsIn.map(amount => `0x` + amount.toString(16)),
       INITIALIZER_MIN_TWAP,
       INITIALIZER_MAX_TWAP
     );
-    const credit = ethValue.reduce((total, value) => total.add(bnum(value)), bnum(0));
+    const credit = ethValue.reduce((total, value) => total.plus(bnum(value)), bnum(0));
 
     return [
       {
