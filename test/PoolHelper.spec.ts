@@ -1,9 +1,9 @@
+import { expect } from 'chai';
 import { provider, createPool, TestToken } from './setup';
 import { PoolHelper } from '../src/pool-helper';
-import { InitializedPool } from 'types';
-import { expect } from 'chai';
+import { InitializedPool } from '../src/types';
 import { formatBalance, toWei } from '../src/utils/bignumber';
-import { calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcSingleOutGivenPoolIn } from '../src/bmath';
+import { calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcSingleOutGivenPoolIn, bnum } from '../src/bmath';
 
 describe('PoolHelper', async () => {
   let pool, tokens: TestToken[], poolInfo: InitializedPool;
@@ -47,8 +47,8 @@ describe('PoolHelper', async () => {
       const { amount, decimals, displayAmount, symbol } = await helper.getJoinRateSingle(token.address, poolAmountOut);
       expect(symbol).to.eq(token.symbol);
       expect(decimals).to.eq(18);
-      expect(amount.eq(amountInExpected)).to.be.true;
-      expect(displayAmount).to.eq(formatBalance(amount, 18, 4));
+      expect(amount).to.eq('0x' + bnum(amountInExpected).toString(16))
+      expect(displayAmount).to.eq(formatBalance(bnum(amount), 18, 4));
     }
   });
 
@@ -62,8 +62,8 @@ describe('PoolHelper', async () => {
       expect(symbol).to.eq(token.symbol);
       expect(decimals).to.eq(18);
       const expected = expectAmountsIn[i];
-      expect(amount.eq(expected)).to.be.true;
-      expect(displayAmount).to.eq(formatBalance(amount, 18, 4));
+      expect(amount).to.eq('0x' + expected.toString(16))
+      expect(displayAmount).to.eq(formatBalance(bnum(amount), 18, 4));
     });
   });
 
@@ -81,8 +81,8 @@ describe('PoolHelper', async () => {
       const { amount, decimals, displayAmount, symbol } = await helper.getLeaveRateSingle(token.address, poolAmountIn);
       expect(symbol).to.eq(token.symbol);
       expect(decimals).to.eq(18);
-      expect(amount.eq(amountOutExpected)).to.be.true;
-      expect(displayAmount).to.eq(formatBalance(amount, 18, 4));
+      expect(amount).to.eq('0x' + amountOutExpected.toString(16))
+      expect(displayAmount).to.eq(formatBalance(bnum(amount), 18, 4));
     }
   });
 
@@ -100,8 +100,8 @@ describe('PoolHelper', async () => {
       expect(symbol).to.eq(token.symbol);
       expect(decimals).to.eq(18);
       const expected = expectedAmountsOut[i];
-      expect(amount.eq(expected)).to.be.true;
-      expect(displayAmount).to.eq(formatBalance(amount, 18, 4));
+      expect(amount).to.eq('0x' + expected.toString(16));
+      expect(displayAmount).to.eq(formatBalance(bnum(amount), 18, 4));
     });
   });
 });
