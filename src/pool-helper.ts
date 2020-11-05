@@ -64,9 +64,18 @@ export class PoolHelper {
     };
   }
 
+  setUserAddress(userAddress: string) {
+    this.userAddress = userAddress;
+    this.waitForUpdate = this.update();
+  }
+
   async updatePool(): Promise<void> {
     const {
-      totalWeight, totalSupply, maxTotalSupply, swapFee, tokens
+      totalWeight,
+      totalSupply,
+      maxTotalSupply,
+      swapFee,
+      tokens
     } = await getCurrentPoolData(this.provider, this.pool.address, this.tokens);
     this.pool.totalSupply = totalSupply;
     this.pool.totalWeight = totalWeight;
@@ -156,7 +165,7 @@ export class PoolHelper {
       ...arr,
       {
         ...partials[i],
-        amount,
+        amount: toHex(amount),
         displayAmount: formatBalance(amount, partials[i].decimals, 4),
         ...this.getRemainingApprovalAmount(partials[i].address, amount)
       }

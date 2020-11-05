@@ -63,6 +63,11 @@ export class InitializerHelper {
     return this.initializer.totalCreditedWETH;
   }
 
+  setUserAddress(userAddress: string) {
+    this.userAddress = userAddress;
+    this.waitForUpdate = this.update();
+  }
+
   async getOracle(): Promise<Contract> {
     if (!this.network) {
       this.network = await this.provider.getNetwork().then(n => n.name);
