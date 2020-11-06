@@ -3,7 +3,7 @@ import { provider, createPool, TestToken } from './setup';
 import { PoolHelper } from '../src/pool-helper';
 import { InitializedPool } from '../src/types';
 import { formatBalance, toWei } from '../src/utils/bignumber';
-import { calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcSingleOutGivenPoolIn, bnum } from '../src/bmath';
+import { calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcSingleOutGivenPoolIn, bnum, calcPoolInGivenSingleOut } from '../src/bmath';
 
 describe('PoolHelper', async () => {
   let pool, tokens: TestToken[], poolInfo: InitializedPool;
@@ -37,14 +37,14 @@ describe('PoolHelper', async () => {
     }
   });
 
-  it('getJoinRateSingle()', async () => {
+  it('calcPoolOutGivenSingleIn()', async () => {
     const maximumAmountIn = toWei(10000);
     const poolAmountOut = toWei(1);
     for (let token of tokens) {
       await token.token.methods.getFreeTokens(from, maximumAmountIn).send({ from });
       await token.token.methods.approve(poolInfo.address, maximumAmountIn).send({ from });
-      const amountInExpected = await pool.methods.joinswapPoolAmountOut(token.address, poolAmountOut, maximumAmountIn).call();
-      const { amount, decimals, displayAmount, symbol } = await helper.getJoinRateSingle(token.address, poolAmountOut);
+      const amountInExpected = await pool.methods.joinswapExternAmountIn(token.address, poolAmountOut, 0).call();
+      const { amount, decimals, displayAmount, symbol } = await helper.calcPoolOutGivenSingleIn(token.address, poolAmountOut);
       expect(symbol).to.eq(token.symbol);
       expect(decimals).to.eq(18);
       expect(amount).to.eq('0x' + bnum(amountInExpected).toString(16))
@@ -52,11 +52,26 @@ describe('PoolHelper', async () => {
     }
   });
 
-  it('getJoinRateMulti()', async () => {
+  it('calcSingleInGivenPoolOut()', async () => {
+    const maximumAmountIn = toWei(10000);
+    const tokenAmountIn = toWei(1);
+    for (let token of tokens) {
+      await token.token.methods.getFreeTokens(from, maximumAmountIn).send({ from });
+      await token.token.methods.approve(poolInfo.address, maximumAmountIn).send({ from });
+      const amountInExpected = await pool.methods.joinswapPoolAmountOut(token.address, tokenAmountIn, maximumAmountIn).call();
+      const { amount, decimals, displayAmount, symbol } = await helper.calcSingleInGivenPoolOut(token.address, tokenAmountIn);
+      expect(symbol).to.eq(token.symbol);
+      expect(decimals).to.eq(18);
+      expect(amount).to.eq('0x' + bnum(amountInExpected).toString(16))
+      expect(displayAmount).to.eq(formatBalance(bnum(amount), 18, 4));
+    }
+  });
+
+  it('calcAllInGivenPoolOut()', async () => {
     const poolAmountOut = toWei(1);
     const usedBalances = tokens.map(t => t.balance);
     const expectAmountsIn = calcAllInGivenPoolOut(usedBalances, toWei(100), poolAmountOut);
-    const amountsIn = await helper.getJoinRateMulti(poolAmountOut);
+    const amountsIn = await helper.calcAllInGivenPoolOut(poolAmountOut);
     amountsIn.forEach(({ amount, symbol, displayAmount, decimals }, i) => {
       const token = tokens[i];
       expect(symbol).to.eq(token.symbol);
@@ -67,7 +82,7 @@ describe('PoolHelper', async () => {
     });
   });
 
-  it('getLeaveRateSingle()', async () => {
+  it('calcSingleOutGivenPoolIn()', async () => {
     const poolAmountIn = toWei(1);
     for (let token of tokens) {
       const amountOutExpected = calcSingleOutGivenPoolIn(
@@ -78,7 +93,7 @@ describe('PoolHelper', async () => {
         poolAmountIn,
         poolInfo.swapFee
       );
-      const { amount, decimals, displayAmount, symbol } = await helper.getLeaveRateSingle(token.address, poolAmountIn);
+      const { amount, decimals, displayAmount, symbol } = await helper.calcSingleOutGivenPoolIn(token.address, poolAmountIn);
       expect(symbol).to.eq(token.symbol);
       expect(decimals).to.eq(18);
       expect(amount).to.eq('0x' + amountOutExpected.toString(16))
@@ -86,7 +101,26 @@ describe('PoolHelper', async () => {
     }
   });
 
-  it('getLeaveRateMulti()', async () => {
+  it('calcPoolInGivenSingleOut()', async () => {
+    const tokenAmountOut = toWei(1);
+    for (let token of tokens) {
+      const amountInExpected = calcPoolInGivenSingleOut(
+        token.balance,
+        token.denorm,
+        poolInfo.totalSupply,
+        poolInfo.totalWeight,
+        tokenAmountOut,
+        poolInfo.swapFee
+      );
+      const { amount, decimals, displayAmount, symbol } = await helper.calcPoolInGivenSingleOut(token.address, tokenAmountOut);
+      expect(symbol).to.eq(token.symbol);
+      expect(decimals).to.eq(18);
+      expect(amount).to.eq('0x' + amountInExpected.toString(16))
+      expect(displayAmount).to.eq(formatBalance(bnum(amount), 18, 4));
+    }
+  });
+
+  it('calcAllOutGivenPoolIn()', async () => {
     const poolAmountIn = toWei(1);
     const expectedAmountsOut = calcAllOutGivenPoolIn(
       tokens.map(t => t.balance),
@@ -94,7 +128,7 @@ describe('PoolHelper', async () => {
       poolInfo.totalSupply,
       poolAmountIn
     );
-    const amountsOut = await helper.getLeaveRateMulti(poolAmountIn);
+    const amountsOut = await helper.calcAllOutGivenPoolIn(poolAmountIn);
     amountsOut.forEach(({ amount, symbol, displayAmount, decimals }, i) => {
       const token = tokens[i];
       expect(symbol).to.eq(token.symbol);
