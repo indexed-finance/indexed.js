@@ -1,5 +1,5 @@
 import { Provider, Web3Provider } from "@ethersproject/providers";
-import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
+import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcPoolInGivenSingleOut, calcPoolOutGivenSingleIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
 import { getAllowances, getCurrentPoolData } from "./multicall";
 import { InitializedPool, PoolToken } from "./types";
 import { BigNumber, BigNumberish, formatBalance, toHex } from './utils/bignumber';
@@ -123,7 +123,13 @@ export class PoolHelper {
     throw new Error(`Token with address ${address} not found in pool.`);
   }
 
-  async getJoinRateSingle(address: string, poolTokensToMint: BigNumberish): Promise<TokenAmount> {
+  /**
+   * Calculate the amount of a specific token that must be provided to mint a given amount of pool tokens.
+   * 
+   * @param address Address of the token to provide
+   * @param poolTokensToMint Amount of pool tokens to mint
+   */
+  async calcSingleInGivenPoolOut(address: string, poolTokensToMint: BigNumberish): Promise<TokenAmount> {
     if (this.shouldUpdate) {
       this.waitForUpdate = this.update();
     }
@@ -147,7 +153,43 @@ export class PoolHelper {
     };
   }
 
-  async getJoinRateMulti(poolTokensToMint: BigNumberish): Promise<TokenAmount[]> {
+  /**
+   * Calculate the amount of pool tokens that can be minted by providing a given amount of a specific token.
+   *
+   * @param address Address of the token to provide
+   * @param tokenAmountIn Amount of tokens to provide
+   */
+  async calcPoolOutGivenSingleIn(address: string, tokenAmountIn: BigNumberish): Promise<TokenAmount> {
+    if (this.shouldUpdate) {
+      this.waitForUpdate = this.update();
+    }
+    await this.waitForUpdate;
+    const amountIn = bnum(tokenAmountIn);
+    const token = this.getTokenByAddress(address);
+    const poolAmountOut = calcPoolOutGivenSingleIn(
+      token.usedBalance,
+      token.usedDenorm,
+      this.pool.totalSupply,
+      this.pool.totalWeight,
+      amountIn,
+      this.pool.swapFee
+    );
+    return {
+      address,
+      symbol: token.symbol,
+      amount: toHex(poolAmountOut),
+      decimals: token.decimals,
+      displayAmount: formatBalance(poolAmountOut, token.decimals, 4),
+      ...this.getRemainingApprovalAmount(address, amountIn)
+    };
+  }
+
+  /**
+   * Calculate the amount of each underlying token that must be provided to mint a given amount of pool tokens.
+   * 
+   * @param poolTokensToMint Amount of pool tokens to mint
+   */
+  async calcAllInGivenPoolOut(poolTokensToMint: BigNumberish): Promise<TokenAmount[]> {
     if (this.shouldUpdate) {
       this.waitForUpdate = this.update();
     }
@@ -172,7 +214,13 @@ export class PoolHelper {
     ], []);
   }
 
-  async getLeaveRateSingle(address: string, poolTokensToBurn: BigNumberish): Promise<TokenAmount> {
+  /**
+   * Calculate the amount of a specific token that can be withdrawn by burning a given amount of pool tokens.
+   * 
+   * @param address Address of the token to withdraw
+   * @param poolTokensToBurn Amount of pool tokens to burn
+   */
+  async calcSingleOutGivenPoolIn(address: string, poolTokensToBurn: BigNumberish): Promise<TokenAmount> {
     if (this.shouldUpdate) {
       this.waitForUpdate = this.update();
     }
@@ -198,7 +246,45 @@ export class PoolHelper {
     };
   }
 
-  async getLeaveRateMulti(poolTokensToBurn: BigNumberish): Promise<TokenAmount[]> {
+  /**
+   * Calculate the amount of pool tokens that would need to be burned to withdraw a given amount of a token.
+   *
+   * @param address Address of the token to withdraw
+   * @param tokenAmountOut Amount of tokens to get out
+   */
+  async calcPoolInGivenSingleOut(address: string, tokenAmountOut: BigNumberish): Promise<TokenAmount> {
+    if (this.shouldUpdate) {
+      this.waitForUpdate = this.update();
+    }
+    await this.waitForUpdate;
+    const amountOut = bnum(tokenAmountOut);
+    const token = this.getTokenByAddress(address);
+    if (!token.ready) {
+      throw Error(`Can not exit into token which is not initialized.`);
+    }
+    const poolAmountIn = calcPoolInGivenSingleOut(
+      token.balance,
+      token.denorm,
+      this.pool.totalSupply,
+      this.pool.totalWeight,
+      amountOut,
+      this.pool.swapFee
+    );
+    return {
+      address,
+      amount: toHex(poolAmountIn),
+      symbol: token.symbol,
+      displayAmount: formatBalance(poolAmountIn, token.decimals, 4),
+      decimals: token.decimals
+    };
+  }
+
+  /**
+   * Calculate the amount of each underlying token that can be withdrawn by burning a given amount of pool tokens.
+   *
+   * @param poolTokensToBurn Number of pool tokens to burn
+   */
+  async calcAllOutGivenPoolIn(poolTokensToBurn: BigNumberish): Promise<TokenAmount[]> {
     if (this.shouldUpdate) {
       this.waitForUpdate = this.update();
     }
