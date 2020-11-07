@@ -1,6 +1,7 @@
 import { Provider, Web3Provider } from "@ethersproject/providers";
+import { toProvider } from "utils/provider";
 import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcPoolInGivenSingleOut, calcPoolOutGivenSingleIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
-import { getAllowances, getCurrentPoolData } from "./multicall";
+import { getTokenUserData, getCurrentPoolData } from "./multicall";
 import { InitializedPool, PoolToken } from "./types";
 import { BigNumber, BigNumberish, formatBalance, toHex } from './utils/bignumber';
 
@@ -11,30 +12,35 @@ export type TokenAmount = {
   amount: string;
   displayAmount: string;
   remainingApprovalAmount?: string;
-  remainingApprovalDisplayAmount?: string;
+  // user balance
+  balance?: string;
+  // allowance for pool
+  allowance?: string;
 }
 
 export class PoolHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
   private provider: Provider;
-  private allowances?: { [key: string]: BigNumber };
+  private userAllowances?: { [key: string]: BigNumber };
+  private userBalances?: { [key: string]: BigNumber };
 
   constructor(
     provider: any,
     public pool: InitializedPool,
     public userAddress?: string
   ) {
-    if (Object.keys(provider).includes('currentProvider')) {
-      this.provider = new Web3Provider(provider.currentProvider);
-    } else {
-      this.provider = provider;
-    }
+    this.provider = toProvider(provider);
     this.lastUpdate = 0;
     if (this.userAddress) {
-      this.allowances = {};
+      this.userAllowances = {};
+      this.userBalances = {};
     }
     this.waitForUpdate = this.update();
+  }
+
+  get address(): string {
+    return this.pool.address;
   }
 
   get tokens(): PoolToken[] {
@@ -46,21 +52,23 @@ export class PoolHelper {
     return timestamp - this.lastUpdate > 600;
   }
 
-  getRemainingApprovalAmount(address: string, amount: BigNumber): {
+  getUserTokenData(address: string, amount: BigNumber): {
     remainingApprovalAmount?: string,
-    remainingApprovalDisplayAmount?: string
+    allowance?: string,
+    balance?: string
   } {
     if (!this.userAddress) return {};
-    const { decimals } = this.getTokenByAddress(address);
-    const allowance = this.allowances[address];
+    const allowance = this.userAllowances[address];
     if (allowance.gte(amount)) return {
       remainingApprovalAmount: '0x0',
-      remainingApprovalDisplayAmount: ''
+      allowance: '0x0',
+      balance: '0x0'
     };
     const remainingApprovalAmount = amount.minus(allowance)
     return {
       remainingApprovalAmount: toHex(remainingApprovalAmount),
-      remainingApprovalDisplayAmount: formatBalance(remainingApprovalAmount, decimals, 4)
+      allowance: toHex(allowance),
+      balance: toHex(this.userBalances[address])
     };
   }
 
@@ -90,19 +98,20 @@ export class PoolHelper {
     }
   }
 
-  async updateAllowances(): Promise<void> {
+  async updateUserData(): Promise<void> {
     if (!this.userAddress) return;
     const tokens = this.tokens;
-    const allowances = await getAllowances(this.provider, this.userAddress, this.pool.address, tokens);
-    allowances.forEach((allowance, i) => {
+    const tokenDatas = await getTokenUserData(this.provider, this.userAddress, this.pool.address, tokens);
+    tokenDatas.forEach(({ allowance, balance }, i) => {
       const address = tokens[i].address;
-      this.allowances[address] = allowance;
+      this.userAllowances[address] = allowance;
+      this.userBalances[address] = balance;
     });
   }
 
   async update(): Promise<void> {
     this.lastUpdate = Math.floor(+new Date() / 1000);
-    await Promise.all([ this.updatePool(), this.updateAllowances() ]);
+    await Promise.all([ this.updatePool(), this.updateUserData() ]);
   }
 
   getTokenBySymbol(symbol: string): PoolToken {
@@ -149,7 +158,7 @@ export class PoolHelper {
       amount: toHex(amountIn),
       decimals: token.decimals,
       displayAmount: formatBalance(amountIn, token.decimals, 4),
-      ...this.getRemainingApprovalAmount(address, amountIn)
+      ...this.getUserTokenData(address, amountIn)
     };
   }
 
@@ -180,7 +189,7 @@ export class PoolHelper {
       amount: toHex(poolAmountOut),
       decimals: token.decimals,
       displayAmount: formatBalance(poolAmountOut, token.decimals, 4),
-      ...this.getRemainingApprovalAmount(address, amountIn)
+      ...this.getUserTokenData(address, amountIn)
     };
   }
 
@@ -209,7 +218,7 @@ export class PoolHelper {
         ...partials[i],
         amount: toHex(amount),
         displayAmount: formatBalance(amount, partials[i].decimals, 4),
-        ...this.getRemainingApprovalAmount(partials[i].address, amount)
+        ...this.getUserTokenData(partials[i].address, amount)
       }
     ], []);
   }
@@ -242,7 +251,7 @@ export class PoolHelper {
       amount: toHex(amountOut),
       symbol: token.symbol,
       displayAmount: formatBalance(amountOut, token.decimals, 4),
-      decimals: token.decimals
+      decimals: token.decimals,
     };
   }
 
