@@ -1,12 +1,13 @@
 import { Provider, Web3Provider } from "@ethersproject/providers";
 import { Contract } from "ethers";
-import { getAllowances } from "./multicall";
+import { getTokenUserData } from "./multicall";
 import { bnum } from "./bmath";
 import { INITIALIZER_MIN_TWAP, INITIALIZER_MAX_TWAP } from "./constants";
 import { PoolInitializer, InitializerToken, UninitializedPool } from "./types";
 import { AddressLike, toAddress } from "./utils/address";
 import { BigNumber, BigNumberish, formatBalance, toHex } from "./utils/bignumber";
 import deployments from './deployments';
+import { toProvider } from "utils/provider";
 
 const oracleAddress = '0x235F273f05Bb2129aD32377AA3E8257a55B1A3b9';
 
@@ -19,14 +20,16 @@ type TokenDetails = {
   address: string;
   decimals: number;
   remainingApprovalAmount?: string;
-  remainingApprovalDisplayAmount?: string;
+  balance?: string;
+  allowance?: string;
 }
 
 export class InitializerHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
   private provider: Provider;
-  private allowances?: { [key: string]: BigNumber };
+  private userAllowances?: { [key: string]: BigNumber };
+  private userBalances?: { [key: string]: BigNumber };
   private network?: string;
 
   constructor(
@@ -34,16 +37,17 @@ export class InitializerHelper {
     public pool: UninitializedPool,
     public userAddress?: string
   ) {
-    if (Object.keys(provider).includes('currentProvider')) {
-      this.provider = new Web3Provider(provider.currentProvider);
-    } else {
-      this.provider = provider;
-    }
+    this.provider = toProvider(provider);
     this.lastUpdate = 0;
     if (this.userAddress) {
-      this.allowances = {};
+      this.userAllowances = {};
+      this.userBalances = {};
     }
     this.waitForUpdate = this.update();
+  }
+
+  get address(): string {
+    return this.initializer.address;
   }
 
   get initializer(): PoolInitializer {
@@ -96,31 +100,34 @@ export class InitializerHelper {
     throw new Error(`Token with address ${address} not found in pool.`);
   }
 
-  getRemainingApprovalAmount(address: string, amount: BigNumber): {
+  getUserTokenData(address: string, amount: BigNumber): {
     remainingApprovalAmount?: string,
-    remainingApprovalDisplayAmount?: string
+    allowance?: string,
+    balance?: string
   } {
     if (!this.userAddress) return {};
-    const { decimals } = this.getTokenByAddress(address);
-    const allowance = this.allowances[address];
+    const allowance = this.userAllowances[address];
     if (allowance.gte(amount)) return {
       remainingApprovalAmount: '0x0',
-      remainingApprovalDisplayAmount: ''
+      allowance: '0x0',
+      balance: '0x0'
     };
     const remainingApprovalAmount = amount.minus(allowance)
     return {
       remainingApprovalAmount: toHex(remainingApprovalAmount),
-      remainingApprovalDisplayAmount: formatBalance(remainingApprovalAmount, decimals, 4)
+      allowance: toHex(allowance),
+      balance: toHex(this.userBalances[address])
     };
   }
 
-  async updateAllowances(): Promise<void> {
+  async updateUserData(): Promise<void> {
     if (!this.userAddress) return;
     const tokens = this.tokens;
-    const allowances = await getAllowances(this.provider, this.userAddress, this.initializer.address, tokens);
-    allowances.forEach((allowance, i) => {
+    const tokenDatas = await getTokenUserData(this.provider, this.userAddress, this.initializer.address, tokens);
+    tokenDatas.forEach(({ allowance, balance }, i) => {
       const address = tokens[i].address;
-      this.allowances[address] = allowance;
+      this.userAllowances[address] = allowance;
+      this.userBalances[address] = balance;
     });
   }
 
@@ -139,7 +146,7 @@ export class InitializerHelper {
 
   async update(): Promise<void> {
     this.lastUpdate = Math.floor(+new Date() / 1000);
-    await Promise.all([ this.updateTokens(), this.updateAllowances() ]);
+    await Promise.all([ this.updateTokens(), this.updateUserData() ]);
   }
 
   async checkTokenPriceReady(token_: AddressLike): Promise<boolean> {
@@ -180,7 +187,7 @@ export class InitializerHelper {
       displayCredit: formatBalance(bnum(credit), 18, 4),
       address: token.address,
       decimals: token.decimals,
-      ...this.getRemainingApprovalAmount(token.address, bnum(amount))
+      ...this.getUserTokenData(token.address, bnum(amount))
     };
   }
 
@@ -197,7 +204,7 @@ export class InitializerHelper {
       details.push({
         address: token.address,
         decimals: token.decimals,
-        ...this.getRemainingApprovalAmount(token.address, amountsIn[i])
+        ...this.getUserTokenData(token.address, amountsIn[i])
       })
     });
     const ethValue = await oracle['computeAverageEthForTokens(address[],uint256[],uint256,uint256)'](

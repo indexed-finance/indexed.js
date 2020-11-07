@@ -6,8 +6,6 @@ import { AddressLike, toAddress } from './utils/address';
 import { BigNumber } from './utils/bignumber';
 import { Provider } from '@ethersproject/providers';
 
-
-
 export async function getCurrentPoolData(
   provider: Provider,
   pool: AddressLike,
@@ -71,12 +69,17 @@ export async function getCurrentPoolData(
   }
 }
 
-export async function getAllowances(
+export type TokenUserData = {
+  allowance: BigNumber;
+  balance: BigNumber;
+}
+
+export async function getTokenUserData(
   provider: Provider,
   src: string,
   dst_: AddressLike,
   tokens: AddressLike[]
-): Promise<BigNumber[]> {
+): Promise<TokenUserData[]> {
   const ierc20Abi = require('./abi/IERC20.json');
   const iface = new Interface(ierc20Abi);
   const multi = new MultiCall(provider);
@@ -88,11 +91,15 @@ export async function getAllowances(
   const dst = toAddress(dst_);
   for (let token of tokenAddresses) {
     calls.push({ target: token, function: 'allowance', args: [src, dst] });
+    calls.push({ target: token, function: 'balanceOf', args: [src] });
   }
   const response = await multi.multiCall(iface, calls);
-  const allowances: BigNumber[] = [];
-  for (let res of response) {
-    allowances.push(bmath.bnum(res));
+  const ret: TokenUserData[] = [];
+  for (let i = 0; i < response.length; i+=2) {
+    let chunk = response.slice(i, i + 2);
+
+    ret.push({ allowance: chunk[0], balance: chunk[1] });
   }
-  return allowances;
+
+  return ret;
 }
