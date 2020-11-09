@@ -54,6 +54,9 @@ export type InitializedPoolUpdate = {
 export type InitializedPool = BasePool & {
   isPublic: true;
   tokens: PoolToken[];
+  feesTotalUSD: string;
+  totalValueLockedUSD: string;
+  totalSwapVolumeUSD: string;
 };
 
 export type UninitializedPool = BasePool & {
@@ -114,4 +117,13 @@ export type PoolTokenUpdate = {
 
 export type InitializerTokenUpdate = {
   amountRemaining: BigNumber;
+}
+
+/* ===== Snapshot Types ===== */
+
+export type PoolDailySnapshot = {
+  timestamp: number;
+  dailyFeesUSD: number;
+  dailySwapVolumeUSD: number;
+  totalValueLockedUSD: number;
 }
