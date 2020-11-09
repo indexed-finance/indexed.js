@@ -1,9 +1,9 @@
 import fetch from 'isomorphic-fetch';
 import * as bmath from './bmath';
-import { Pool, Token } from './types';
+import { Pool, PoolDailySnapshot, Token } from './types';
 import { BigNumber } from './utils/bignumber';
 
-const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-v1';
+const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/d1ll0n/indexed-rinkeby';
 const UNISWAP_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2';
 const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/samgos/uniswap-v2-rinkeby';
 
@@ -17,26 +17,34 @@ totalSupply
 totalWeight
 maxTotalSupply
 swapFee
+feesTotalUSD
+totalValueLockedUSD
+totalSwapVolumeUSD
 poolInitializer {
   id
   totalCreditedWETH
   tokens {
-    address
-    decimals
-    name
-    symbol
+    token {
+      id
+      decimals
+      name
+      symbol
+    }
     balance
     targetBalance
     amountRemaining
   }
 }
 tokens {
+  id
+  token {
+    id
+    decimals
+    name
+    symbol
+  }
   ready
-  address
   balance
-  decimals
-  name
-  symbol
   denorm
   desiredDenorm
 }
@@ -85,11 +93,11 @@ export async function getPool(address: string): Promise<Pool> {
 }
 
 const toBaseToken = (t): Token => ({
-  address: t.address,
+  address: t.token.id,
   balance: bmath.bnum(t.balance),
-  decimals: +t.decimals,
-  name: t.name,
-  symbol: t.symbol
+  decimals: +(t.token.decimals),
+  name: t.token.name,
+  symbol: t.token.symbol
 });
 
 export const parsePoolData = (
@@ -109,6 +117,9 @@ export const parsePoolData = (
       swapFee: p.isPublic ? bmath.scale(bmath.bnum(p.swapFee), 18) : bmath.bnum(0),
     };
     if (p.isPublic) {
+      obj.feesTotalUSD = p.feesTotalUSD;
+      obj.totalValueLockedUSD = p.totalValueLockedUSD;
+      obj.totalSwapVolumeUSD = p.totalSwapVolumeUSD;
       obj.tokens = [];
       p.tokens.forEach((t) => {
         let token: any = {
@@ -173,4 +184,53 @@ export async function getTokenPrice(address: string): Promise<BigNumber> {
   const { tokenDayDatas } = await executeQuery(UNISWAP_SUBGRAPH_URL_RINKEBY, tokenDayDataQuery(address, 1));
   const tokenDayData = tokenDayDatas[0];
   return bmath.bnum(tokenDayData.priceUSD);
+}
+
+
+const poolSnapshotsQuery = (poolAddress: string, days: number) => `
+{
+  dailyPoolSnapshots(orderBy: timestamp, orderDirection: desc, first: ${days}, where: { pool: "${poolAddress}" }) {
+    id
+    timestamp
+    feesTotalUSD
+    totalValueLockedUSD
+    totalSwapVolumeUSD
+  }
+}
+`
+
+export async function getPoolSnapshots(poolAddress: string, days: number): Promise<PoolDailySnapshot[]> {
+  console.log(`Querying snapshots!`)
+  console.log(poolSnapshotsQuery(poolAddress, days + 1))
+  const { dailyPoolSnapshots } = await executeQuery(poolSnapshotsQuery(poolAddress, days + 1), INDEXED_SUBGRAPH_URL);
+  console.log(dailyPoolSnapshots)
+  return parsePoolSnapshots(dailyPoolSnapshots);
+}
+
+export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
+  let snapshots = snapshots_.reverse();
+  let retArr: PoolDailySnapshot[] = [];
+  let snapshot0 = snapshots[0];
+  let lastSwapVolumeTotal = +(snapshot0.totalSwapVolumeUSD);
+  let lastFeesTotal = +(snapshot0.feesTotalUSD);
+
+  for (let snapshot of snapshots.slice(1)) {
+    const {
+      timestamp,
+      feesTotalUSD,
+      totalValueLockedUSD,
+      totalSwapVolumeUSD
+    } = snapshot;
+    let dailyFeesUSD = (+feesTotalUSD) - lastFeesTotal;
+    let dailySwapVolumeUSD = (+totalSwapVolumeUSD) - lastSwapVolumeTotal;
+    lastFeesTotal = +feesTotalUSD;
+    lastSwapVolumeTotal = +totalSwapVolumeUSD;
+    retArr.push({
+      timestamp: +timestamp,
+      dailyFeesUSD: dailyFeesUSD,
+      totalValueLockedUSD,
+      dailySwapVolumeUSD
+    });
+  }
+  return retArr;
 }
