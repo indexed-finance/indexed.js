@@ -40,6 +40,8 @@ export type Token = {
   name: string;
   symbol: string;
   balance: BigNumber;
+  // price USD from the last day the token was updated
+  priceUSD: number;
 };
 
 export type InitializedPoolUpdate = {
