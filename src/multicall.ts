@@ -4,13 +4,14 @@ import { CallInput, MultiCall } from '@indexed-finance/multicall';
 import * as bmath from './bmath';
 import { AddressLike, toAddress } from './utils/address';
 import { BigNumber } from './utils/bignumber';
-import { Provider } from '@ethersproject/providers';
+import { toProvider } from 'utils/provider';
 
 export async function getCurrentPoolData(
-  provider: Provider,
+  provider_: any,
   pool: AddressLike,
   tokens: AddressLike[]
 ): Promise<InitializedPoolUpdate> {
+  const provider = toProvider(provider_);
 
   const poolAddress: string = toAddress(pool);
   const tokenAddresses: string[] = [];
@@ -75,11 +76,12 @@ export type TokenUserData = {
 }
 
 export async function getTokenUserData(
-  provider: Provider,
+  provider_: any,
   src: string,
   dst_: AddressLike,
   tokens: AddressLike[]
 ): Promise<TokenUserData[]> {
+  const provider = toProvider(provider_);
   const ierc20Abi = require('./abi/IERC20.json');
   const iface = new Interface(ierc20Abi);
   const multi = new MultiCall(provider);
