@@ -3,7 +3,7 @@ import * as bmath from './bmath';
 import { Pool, PoolDailySnapshot, Token } from './types';
 import { BigNumber } from './utils/bignumber';
 
-const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/d1ll0n/indexed-rinkeby';
+const INDEXED_SUBGRAPH_URL = 'https://thegraph.com/explorer/subgraph/indexed-finance/indexed-v1';
 const UNISWAP_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2';
 const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/samgos/uniswap-v2-rinkeby';
 
