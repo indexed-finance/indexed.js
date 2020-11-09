@@ -4,7 +4,7 @@ import { CallInput, MultiCall } from '@indexed-finance/multicall';
 import * as bmath from './bmath';
 import { AddressLike, toAddress } from './utils/address';
 import { BigNumber } from './utils/bignumber';
-import { toProvider } from 'utils/provider';
+import { toProvider } from './utils/provider';
 
 export async function getCurrentPoolData(
   provider_: any,
