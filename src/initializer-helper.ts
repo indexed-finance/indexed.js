@@ -46,6 +46,18 @@ export class InitializerHelper {
     this.waitForUpdate = this.update();
   }
 
+  get category(): number {
+    return this.pool.category;
+  }
+
+  get name(): string {
+    return this.pool.name;
+  }
+
+  get symbol(): string {
+    return this.pool.symbol;
+  }
+
   get address(): string {
     return this.initializer.address;
   }

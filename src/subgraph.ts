@@ -9,6 +9,9 @@ const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/sa
 
 const poolQuery = `
 id
+category {
+  id
+}
 size
 name
 symbol
@@ -109,6 +112,7 @@ export const parsePoolData = (
   let poolData: Pool[] = [];
   pools.forEach((p) => {
     let obj: any = {
+      category: +(p.category.id),
       address: p.id,
       name: p.name,
       symbol: p.symbol,
