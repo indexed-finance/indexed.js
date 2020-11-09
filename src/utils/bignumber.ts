@@ -13,6 +13,8 @@ export type BigNumberish = eBigNumberish | BigNumber;
 
 export { BigNumber };
 
+export const toBN = (num: BigNumberish): BigNumber => bnum(num);
+
 export function toWei(val: BigNumberish): BigNumber {
   return scale(bnum(val.toString()), 18).integerValue();
 }
