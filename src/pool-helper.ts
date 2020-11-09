@@ -1,6 +1,6 @@
 import { Provider, Web3Provider } from "@ethersproject/providers";
-import { getPoolSnapshots } from "subgraph";
-import { toProvider } from "utils/provider";
+import { getPoolSnapshots } from "./subgraph";
+import { toProvider } from "./utils/provider";
 import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcPoolInGivenSingleOut, calcPoolOutGivenSingleIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
 import { getTokenUserData, getCurrentPoolData } from "./multicall";
 import { InitializedPool, PoolDailySnapshot, PoolToken } from "./types";
