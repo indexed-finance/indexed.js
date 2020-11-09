@@ -200,10 +200,7 @@ const poolSnapshotsQuery = (poolAddress: string, days: number) => `
 `
 
 export async function getPoolSnapshots(poolAddress: string, days: number): Promise<PoolDailySnapshot[]> {
-  console.log(`Querying snapshots!`)
-  console.log(poolSnapshotsQuery(poolAddress, days + 1))
   const { dailyPoolSnapshots } = await executeQuery(poolSnapshotsQuery(poolAddress, days + 1), INDEXED_SUBGRAPH_URL);
-  console.log(dailyPoolSnapshots)
   return parsePoolSnapshots(dailyPoolSnapshots);
 }
 
