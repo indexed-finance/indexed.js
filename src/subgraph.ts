@@ -196,7 +196,7 @@ export async function getTokenPrice(address: string): Promise<BigNumber> {
 
 const poolSnapshotsQuery = (poolAddress: string, days: number) => `
 {
-  dailyPoolSnapshots(orderBy: timestamp, orderDirection: desc, first: ${days}, where: { pool: "${poolAddress}" }) {
+  dailyPoolSnapshots(orderBy: date, orderDirection: desc, first: ${days}, where: { pool: "${poolAddress}" }) {
     id
     date
     value
