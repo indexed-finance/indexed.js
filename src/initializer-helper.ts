@@ -7,7 +7,7 @@ import { PoolInitializer, InitializerToken, UninitializedPool } from "./types";
 import { AddressLike, toAddress } from "./utils/address";
 import { BigNumber, BigNumberish, formatBalance, toHex } from "./utils/bignumber";
 import deployments from './deployments';
-import { toProvider } from "utils/provider";
+import { toProvider } from "./utils/provider";
 
 const oracleAddress = '0x235F273f05Bb2129aD32377AA3E8257a55B1A3b9';
 
