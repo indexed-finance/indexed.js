@@ -217,30 +217,70 @@ export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
   let snapshots = snapshots_.reverse();
   let retArr: PoolDailySnapshot[] = [];
   let snapshot0 = snapshots[0];
+  let lastDate = +(snapshot0.date);
   let lastSwapVolumeTotal = +(snapshot0.totalSwapVolumeUSD);
   let lastFeesTotal = +(snapshot0.feesTotalUSD);
-
-  for (let snapshot of snapshots.slice(1)) {
-    const {
-      date,
-      value,
-      totalSupply,
-      feesTotalUSD,
-      totalValueLockedUSD,
-      totalSwapVolumeUSD
-    } = snapshot;
-    let dailyFeesUSD = (+feesTotalUSD) - lastFeesTotal;
-    let dailySwapVolumeUSD = (+totalSwapVolumeUSD) - lastSwapVolumeTotal;
-    lastFeesTotal = +feesTotalUSD;
-    lastSwapVolumeTotal = +totalSwapVolumeUSD;
+  let lastSupply = +(snapshot0.totalSupply);
+  let lastValue = +(snapshot0.value);
+  let lastTotalValue = +(snapshot0.totalValueLockedUSD)
+  if (snapshots_.length == 1) {
     retArr.push({
-      date: +date,
-      value: +value,
-      totalSupply: +totalSupply,
-      dailyFeesUSD: +dailyFeesUSD,
-      totalValueLockedUSD: +totalValueLockedUSD,
-      dailySwapVolumeUSD: +dailySwapVolumeUSD
+      date: lastDate,
+      value: +(snapshot0.value),
+      totalSupply: +(snapshot0.totalSupply),
+      dailyFeesUSD: lastFeesTotal,
+      totalValueLockedUSD: +(snapshot0.totalValueLockedUSD),
+      dailySwapVolumeUSD: lastSwapVolumeTotal
     });
+  } else {
+    for (let snapshot of snapshots.slice(1)) {
+      const {
+        date,
+        value,
+        totalSupply,
+        feesTotalUSD,
+        totalValueLockedUSD,
+        totalSwapVolumeUSD
+      } = snapshot;
+      
+      let dailyFeesUSD = (+feesTotalUSD) - lastFeesTotal;
+      let dailySwapVolumeUSD = (+totalSwapVolumeUSD) - lastSwapVolumeTotal;
+      let diff = (+date) - (lastDate);
+      if (diff > 3600) {
+        let numHours = (diff / 3600) - 1;
+        let feesEachHour = dailyFeesUSD / numHours;
+        let volumeEachHour = dailySwapVolumeUSD / numHours;
+        let supplyEachHour = (+totalSupply - lastSupply) / numHours;
+        let valueEachHour = (+value - lastValue) / numHours;
+        let tvlEachHour = (+totalValueLockedUSD - lastTotalValue) / numHours;
+        for (let i = 1; i <= numHours; i++) {
+          retArr.push({
+            date: lastDate + (3600 * i),
+            value: lastValue + (valueEachHour * i),
+            totalSupply: lastSupply + (supplyEachHour * i),
+            dailyFeesUSD: (feesEachHour * i),
+            totalValueLockedUSD: lastTotalValue + (tvlEachHour * i),
+            dailySwapVolumeUSD: (volumeEachHour * i)
+          });
+        }
+      }
+      lastFeesTotal = +feesTotalUSD;
+      lastSwapVolumeTotal = +totalSwapVolumeUSD;
+      lastSupply = +totalSupply;
+      lastValue = +value;
+      lastDate = +date;
+      lastTotalValue = +totalValueLockedUSD
+
+      retArr.push({
+        date: +date,
+        value: +value,
+        totalSupply: +totalSupply,
+        dailyFeesUSD: +dailyFeesUSD,
+        totalValueLockedUSD: +totalValueLockedUSD,
+        dailySwapVolumeUSD: +dailySwapVolumeUSD
+      });
+    }
+
   }
   return retArr;
 }
