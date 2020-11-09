@@ -198,7 +198,9 @@ const poolSnapshotsQuery = (poolAddress: string, days: number) => `
 {
   dailyPoolSnapshots(orderBy: timestamp, orderDirection: desc, first: ${days}, where: { pool: "${poolAddress}" }) {
     id
-    timestamp
+    date
+    value
+    totalSupply
     feesTotalUSD
     totalValueLockedUSD
     totalSwapVolumeUSD
@@ -220,7 +222,9 @@ export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
 
   for (let snapshot of snapshots.slice(1)) {
     const {
-      timestamp,
+      date,
+      value,
+      totalSupply,
       feesTotalUSD,
       totalValueLockedUSD,
       totalSwapVolumeUSD
@@ -230,10 +234,12 @@ export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
     lastFeesTotal = +feesTotalUSD;
     lastSwapVolumeTotal = +totalSwapVolumeUSD;
     retArr.push({
-      timestamp: +timestamp,
-      dailyFeesUSD: dailyFeesUSD,
-      totalValueLockedUSD,
-      dailySwapVolumeUSD
+      date: +date,
+      value: +value,
+      totalSupply: +totalSupply,
+      dailyFeesUSD: +dailyFeesUSD,
+      totalValueLockedUSD: +totalValueLockedUSD,
+      dailySwapVolumeUSD: +dailySwapVolumeUSD
     });
   }
   return retArr;

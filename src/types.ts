@@ -125,7 +125,9 @@ export type InitializerTokenUpdate = {
 /* ===== Snapshot Types ===== */
 
 export type PoolDailySnapshot = {
-  timestamp: number;
+  date: number;
+  value: number;
+  totalSupply: number;
   dailyFeesUSD: number;
   dailySwapVolumeUSD: number;
   totalValueLockedUSD: number;
