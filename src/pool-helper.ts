@@ -1,8 +1,9 @@
 import { Provider, Web3Provider } from "@ethersproject/providers";
+import { getPoolSnapshots } from "subgraph";
 import { toProvider } from "utils/provider";
 import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcPoolInGivenSingleOut, calcPoolOutGivenSingleIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
 import { getTokenUserData, getCurrentPoolData } from "./multicall";
-import { InitializedPool, PoolToken } from "./types";
+import { InitializedPool, PoolDailySnapshot, PoolToken } from "./types";
 import { BigNumber, BigNumberish, formatBalance, toHex } from './utils/bignumber';
 
 export type TokenAmount = {
@@ -50,6 +51,10 @@ export class PoolHelper {
   get shouldUpdate(): boolean {
     const timestamp = Math.floor(+new Date() / 1000);
     return timestamp - this.lastUpdate > 600;
+  }
+
+  async getSnapshots(days: number): Promise<PoolDailySnapshot[]> {
+    return getPoolSnapshots(this.address, days);
   }
 
   getUserTokenData(address: string, amount: BigNumber): {
