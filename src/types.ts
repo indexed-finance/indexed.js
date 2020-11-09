@@ -23,6 +23,7 @@ export type Swap = {
 
 /* ===== Base Types ===== */
 type BasePool = {
+  category: number;
   address: string;
   name: string;
   symbol: string;
