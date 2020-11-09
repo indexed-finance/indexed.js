@@ -181,7 +181,7 @@ const tokenDayDataQuery = (tokenAddress, days) => `
 `
 
 export async function getTokenPrice(address: string): Promise<BigNumber> {
-  const { tokenDayDatas } = await executeQuery(UNISWAP_SUBGRAPH_URL_RINKEBY, tokenDayDataQuery(address, 1));
+  const { tokenDayDatas } = await executeQuery(tokenDayDataQuery(address, 1), UNISWAP_SUBGRAPH_URL_RINKEBY);
   const tokenDayData = tokenDayDatas[0];
   return bmath.bnum(tokenDayData.priceUSD);
 }
