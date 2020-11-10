@@ -100,7 +100,7 @@ export async function getTokenUserData(
   for (let i = 0; i < response.length; i+=2) {
     let chunk = response.slice(i, i + 2);
 
-    ret.push({ allowance: chunk[0], balance: chunk[1] });
+    ret.push({ allowance: bmath.bnum(chunk[0]), balance: bmath.bnum(chunk[1]) });
   }
 
   return ret;

@@ -91,6 +91,8 @@ export class PoolHelper {
 
   setUserAddress(userAddress: string) {
     this.userAddress = userAddress;
+    this.userAllowances = {};
+    this.userBalances = {};
     this.waitForUpdate = this.update();
   }
 
