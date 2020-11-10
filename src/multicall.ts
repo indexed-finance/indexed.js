@@ -33,7 +33,7 @@ export async function getCurrentPoolData(
     calls.push({ target: poolAddress, function: 'getBalance', args: [token] });
     calls.push({ target: poolAddress, function: 'getUsedBalance', args: [token] });
     calls.push({ target: poolAddress, function: 'getDenormalizedWeight', args: [token] });
-}
+  }
   const response = await multi.multiCall(iface, calls);
   const totalDenorm = bmath.bnum(response[0]);
   const totalSupply = bmath.bnum(response[1]);

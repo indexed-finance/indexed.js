@@ -23,8 +23,8 @@ export class PoolHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
   private provider: Provider;
-  private userAllowances?: { [key: string]: BigNumber };
-  private userBalances?: { [key: string]: BigNumber };
+  public userAllowances?: { [key: string]: BigNumber };
+  public userBalances?: { [key: string]: BigNumber };
 
   constructor(
     provider: any,
@@ -235,7 +235,7 @@ export class PoolHelper {
         ...partials[i],
         amount: toHex(amount),
         displayAmount: formatBalance(amount, partials[i].decimals, 4),
-        ...this.getUserTokenData(partials[i].address, amount)
+        ...(this.getUserTokenData(partials[i].address, amount))
       }
     ], []);
   }
