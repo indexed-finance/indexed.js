@@ -28,8 +28,8 @@ export class InitializerHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
   private provider: Provider;
-  private userAllowances?: { [key: string]: BigNumber };
-  private userBalances?: { [key: string]: BigNumber };
+  public userAllowances?: { [key: string]: BigNumber };
+  public userBalances?: { [key: string]: BigNumber };
   private network?: string;
 
   constructor(
