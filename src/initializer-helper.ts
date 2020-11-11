@@ -9,8 +9,6 @@ import { BigNumber, BigNumberish, formatBalance, toHex } from "./utils/bignumber
 import deployments from './deployments';
 import { toProvider } from "./utils/provider";
 
-const oracleAddress = '0x235F273f05Bb2129aD32377AA3E8257a55B1A3b9';
-
 type CreditAmount = {
   credit: string;
   displayCredit: string;
@@ -28,8 +26,8 @@ export class InitializerHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
   private provider: Provider;
-  public userAllowances?: { [key: string]: BigNumber };
-  public userBalances?: { [key: string]: BigNumber };
+  public userAllowances: { [key: string]: BigNumber } = {};
+  public userBalances: { [key: string]: BigNumber } = {};
   private network?: string;
 
   constructor(
@@ -39,10 +37,6 @@ export class InitializerHelper {
   ) {
     this.provider = toProvider(provider);
     this.lastUpdate = 0;
-    if (this.userAddress) {
-      this.userAllowances = {};
-      this.userBalances = {};
-    }
     this.waitForUpdate = this.update();
   }
 
@@ -81,8 +75,6 @@ export class InitializerHelper {
 
   setUserAddress(userAddress: string) {
     this.userAddress = userAddress;
-    this.userAllowances = {};
-    this.userBalances = {};
     this.waitForUpdate = this.update();
   }
 

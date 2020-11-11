@@ -51,6 +51,7 @@ export type InitializedPoolUpdate = {
   maxTotalSupply: BigNumber;
   swapFee: BigNumber;
   tokens: PoolTokenUpdate[];
+  userBalance?: BigNumber;
 }
 
 /* ===== Pool Types ===== */

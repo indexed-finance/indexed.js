@@ -23,8 +23,9 @@ export class PoolHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
   private provider: Provider;
-  public userAllowances?: { [key: string]: BigNumber };
-  public userBalances?: { [key: string]: BigNumber };
+  public userAllowances: { [key: string]: BigNumber } = {};
+  public userBalances: { [key: string]: BigNumber } = {};
+  public userPoolBalance?: BigNumber;
 
   constructor(
     provider: any,
@@ -33,10 +34,6 @@ export class PoolHelper {
   ) {
     this.provider = toProvider(provider);
     this.lastUpdate = 0;
-    if (this.userAddress) {
-      this.userAllowances = {};
-      this.userBalances = {};
-    }
     this.waitForUpdate = this.update();
   }
 
@@ -91,19 +88,19 @@ export class PoolHelper {
 
   setUserAddress(userAddress: string) {
     this.userAddress = userAddress;
-    this.userAllowances = {};
-    this.userBalances = {};
     this.waitForUpdate = this.update();
   }
 
   async updatePool(): Promise<void> {
     const {
+      userBalance,
       totalWeight,
       totalSupply,
       maxTotalSupply,
       swapFee,
       tokens
-    } = await getCurrentPoolData(this.provider, this.pool.address, this.tokens);
+    } = await getCurrentPoolData(this.provider, this.pool.address, this.tokens, this.userAddress);
+    this.userPoolBalance = userBalance;
     this.pool.totalSupply = totalSupply;
     this.pool.totalWeight = totalWeight;
     this.pool.maxTotalSupply = maxTotalSupply;

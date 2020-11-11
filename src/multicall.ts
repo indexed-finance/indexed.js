@@ -9,7 +9,8 @@ import { toProvider } from './utils/provider';
 export async function getCurrentPoolData(
   provider_: any,
   pool: AddressLike,
-  tokens: AddressLike[]
+  tokens: AddressLike[],
+  userAddress?: string
 ): Promise<InitializedPoolUpdate> {
   const provider = toProvider(provider_);
 
@@ -28,6 +29,9 @@ export async function getCurrentPoolData(
   calls.push({ target: poolAddress, function: 'totalSupply' });
   calls.push({ target: poolAddress, function: 'getMaxPoolTokens' });
   calls.push({ target: poolAddress, function: 'getSwapFee' });
+  if (userAddress) {
+    calls.push({ target: poolAddress, function: 'balanceOf', args: [userAddress] });
+  }
   
   for (let token of tokenAddresses) {
     calls.push({ target: poolAddress, function: 'getBalance', args: [token] });
@@ -39,8 +43,14 @@ export async function getCurrentPoolData(
   const totalSupply = bmath.bnum(response[1]);
   const maxTotalSupply = bmath.bnum(response[2]);
   const swapFee = bmath.bnum(response[3]);
+  let userBalance: BigNumber | undefined;
+  let i = 4;
+  if (userAddress) {
+    userBalance = bmath.bnum(response[4]);
+    i += 1;
+  }
   let chunkResponse = [];
-  for (let i = 4; i < response.length; i += 3) {
+  for (; i < response.length; i += 3) {
     let chunk = response.slice(i, i + 3);
     chunkResponse.push(chunk);
   }
@@ -62,6 +72,7 @@ export async function getCurrentPoolData(
     });
   });
   return {
+    userBalance,
     totalWeight: totalDenorm,
     totalSupply,
     maxTotalSupply,
