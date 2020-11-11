@@ -157,7 +157,7 @@ export class InitializerHelper {
     const initializerAbi = require('./abi/IPoolInitializer.json');
     const initializer = new Contract(this.initializer.address, initializerAbi, this.provider);
     const tokens = this.tokens.map(t => t.address);
-    const desiredAmounts = await initializer.getDesiredAmounts(tokens);
+    const desiredAmounts = (await initializer.getDesiredAmounts(tokens)).map(bnum);
     const prices = await this.getPrices(tokens);
     desiredAmounts.forEach((amount, i) => {
       const token = this.tokens[i];
