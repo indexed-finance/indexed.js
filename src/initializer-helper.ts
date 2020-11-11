@@ -1,4 +1,4 @@
-import { Provider, Web3Provider } from "@ethersproject/providers";
+import { Provider } from "@ethersproject/providers";
 import { Contract } from "ethers";
 import { getTokenUserData } from "./multicall";
 import { bnum } from "./bmath";
@@ -22,10 +22,14 @@ type TokenDetails = {
   allowance?: string;
 }
 
+const MAX_UINT112 = new BigNumber(2).pow(112);
+const fromFP = (num: BigNumber) => num.div(MAX_UINT112);
+
 export class InitializerHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
   private provider: Provider;
+  public tokenPrices: { [key: string]: BigNumber } = {};
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};
   private network?: string;
@@ -126,6 +130,18 @@ export class InitializerHelper {
     };
   }
 
+  async getPrices(tokens_: AddressLike[]): Promise<BigNumber[]> {
+    const tokens = tokens_.map(toAddress);
+    const oracle = await this.getOracle();
+    const prices = await oracle.computeAverageTokenPrices(
+      tokens,
+      INITIALIZER_MIN_TWAP,
+      INITIALIZER_MAX_TWAP
+    );
+    const fpValues = prices.map(p => fromFP(bnum(p._x)));
+    return fpValues;
+  }
+
   async updateUserData(): Promise<void> {
     if (!this.userAddress) return;
     const tokens = this.tokens;
@@ -140,13 +156,16 @@ export class InitializerHelper {
   async updateTokens(): Promise<void> {
     const initializerAbi = require('./abi/IPoolInitializer.json');
     const initializer = new Contract(this.initializer.address, initializerAbi, this.provider);
-    const desiredAmounts = await initializer.getDesiredAmounts(this.tokens.map(t => t.address));
+    const tokens = this.tokens.map(t => t.address);
+    const desiredAmounts = await initializer.getDesiredAmounts(tokens);
+    const prices = await this.getPrices(tokens);
     desiredAmounts.forEach((amount, i) => {
       const token = this.tokens[i];
       const targetBalance = token.targetBalance;
       const balance = targetBalance.minus(amount);
       token.amountRemaining = amount;
       token.balance = balance;
+      this.tokenPrices[tokens[i]] = prices[i];
     });
   }
 
@@ -175,51 +194,47 @@ export class InitializerHelper {
     await oracle.updatePrice(toAddress(token)).then(tx => tx.wait());
   }
 
-  async getExpectedCredit(token_: AddressLike, amount: BigNumberish): Promise<CreditAmount & TokenDetails> {
+  async getExpectedCredit(token_: AddressLike, amount_: BigNumberish): Promise<CreditAmount & TokenDetails> {
     if (this.shouldUpdate) {
       this.waitForUpdate = this.update();
     }
     await this.waitForUpdate;
-    const oracle = await this.getOracle();
-    const token = this.getTokenByAddress(toAddress(token_));
-    const credit = await oracle['computeAverageEthForTokens(address,uint256,uint256,uint256)'](
-      token.address,
-      `0x` + amount.toString(16),
-      INITIALIZER_MIN_TWAP,
-      INITIALIZER_MAX_TWAP
-    );
+    const amount = bnum(amount_);
+    const address = toAddress(token_);
+    const token = this.getTokenByAddress(address);
+    const credit = this.tokenPrices[address].times(amount);
     return {
-      credit: toHex(bnum(credit)),
-      displayCredit: formatBalance(bnum(credit), 18, 4),
+      credit: toHex(credit),
+      displayCredit: formatBalance(credit, 18, 4),
       address: token.address,
       decimals: token.decimals,
-      ...this.getUserTokenData(token.address, bnum(amount))
+      ...this.getUserTokenData(token.address, amount)
     };
   }
 
-  async getExpectedCredits(tokens: AddressLike[], amounts: BigNumberish[]): Promise<[CreditAmount, TokenDetails[]]> {
+  async getExpectedCredits(tokens_: AddressLike[], amounts: BigNumberish[]): Promise<[CreditAmount, TokenDetails[]]> {
     if (this.shouldUpdate) {
       this.waitForUpdate = this.update();
     }
     await this.waitForUpdate;
-    const oracle = await this.getOracle();
+    const tokens = tokens_.map(toAddress);
     const amountsIn = amounts.map(bnum);
     const details: TokenDetails[] = [];
-    tokens.forEach((token_, i) => {
-      const token = this.getTokenByAddress(toAddress(token_));
+    let credit = bnum(0);
+    tokens.forEach((tokenAddress, i) => {
+      const token = this.getTokenByAddress(tokenAddress);
       details.push({
         address: token.address,
         decimals: token.decimals,
         ...this.getUserTokenData(token.address, amountsIn[i])
       })
     });
-    const ethValue = await oracle['computeAverageEthForTokens(address[],uint256[],uint256,uint256)'](
-      tokens.map(toAddress),
-      amountsIn.map(amount => `0x` + amount.toString(16)),
-      INITIALIZER_MIN_TWAP,
-      INITIALIZER_MAX_TWAP
-    );
-    const credit = ethValue.reduce((total, value) => total.plus(bnum(value)), bnum(0));
+
+    tokens.forEach((token, i) => {
+      const price = this.tokenPrices[token];
+      const amount = amountsIn[i];
+      credit = credit.plus(price.times(amount))
+    });
 
     return [
       {
