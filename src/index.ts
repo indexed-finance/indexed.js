@@ -6,6 +6,7 @@ import { PoolHelper } from './pool-helper';
 import { InitializerHelper } from './initializer-helper';
 export * from './utils/bignumber';
 export { bmath, getPools, PoolHelper };
+export { UniswapHelper } from './uniswap-helper';
 
 export async function getAllHelpers(provider: any, userAddress?: string): Promise<{
   initialized: PoolHelper[],
