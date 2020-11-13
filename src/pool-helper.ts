@@ -37,6 +37,10 @@ export class PoolHelper {
     this.waitForUpdate = this.update();
   }
 
+  get initializer(): string {
+    return this.pool.initializer;
+  }
+
   get category(): number {
     return this.pool.category;
   }
