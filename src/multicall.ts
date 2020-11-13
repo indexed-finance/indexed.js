@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import { CallInput, MultiCall } from '@indexed-finance/multicall';
+import { UNISWAP_ROUTER } from './constants';
 import * as bmath from './bmath';
 import { InitializedPoolUpdate, PoolTokenUpdate, UniswapPairData } from './types';
 import { AddressLike, computeUniswapPairAddress, sortTokens, toAddress } from './utils/address';
@@ -145,8 +146,8 @@ export async function getUniswapData(
     pairAddresses.push(pairAddress);
     if (userAddress) {
       calls.push({ target: tokenB, interface: ierc20Abi, function: 'balanceOf', args: [userAddress] });
-      calls.push({ target: tokenA, interface: ierc20Abi, function: 'allowance', args: [userAddress, pairAddress] });
-      calls.push({ target: tokenB, interface: ierc20Abi, function: 'allowance', args: [userAddress, pairAddress] });
+      calls.push({ target: tokenA, interface: ierc20Abi, function: 'allowance', args: [userAddress, UNISWAP_ROUTER] });
+      calls.push({ target: tokenB, interface: ierc20Abi, function: 'allowance', args: [userAddress, UNISWAP_ROUTER] });
     }
     calls.push({ target: pairAddress, interface: pairAbi, function: 'getReserves' });
   });
