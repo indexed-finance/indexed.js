@@ -66,3 +66,24 @@ export async function getTokenPriceUSD(provider_: any, token: string, decimals: 
   const tokenPriceEth = await getTokenPriceEth(provider_, token, decimals);
   return tokenPriceEth.times(ethPriceDai);
 }
+
+type Pair = {
+  pairAddress: string;
+  pairedTokenAddress: string;
+}
+
+export async function getAllTokenPairs(provider_: any, token: string, whitelist: string[]): Promise<Pair[]> {
+  const provider = toProvider(provider_);
+  const proms: Promise<Pair | null>[] = whitelist.map((tokenB) => {
+    const pairAddress = computeUniswapPairAddress(token, tokenB);
+    console.log(pairAddress)
+    return provider.getCode(pairAddress).then((c) => {
+      if (!c || c === '0x') return null;
+      return {
+        pairAddress,
+        pairedTokenAddress: tokenB
+      };
+    })
+  });
+  return (await Promise.all(proms)).filter(p => p);
+}
