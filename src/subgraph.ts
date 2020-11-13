@@ -128,6 +128,7 @@ export const parsePoolData = (
       obj.totalValueLockedUSD = p.totalValueLockedUSD;
       obj.totalSwapVolumeUSD = p.totalSwapVolumeUSD;
       obj.tokens = [];
+      obj.initializer = p.poolInitializer.id;
       p.tokens.forEach((t) => {
         let token: any = {
           ...toBaseToken(t),
