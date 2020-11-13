@@ -61,6 +61,7 @@ export type InitializedPool = BasePool & {
   feesTotalUSD: string;
   totalValueLockedUSD: string;
   totalSwapVolumeUSD: string;
+  initializer: string;
 };
 
 export type UninitializedPool = BasePool & {
@@ -132,4 +133,16 @@ export type PoolDailySnapshot = {
   dailyFeesUSD: number;
   dailySwapVolumeUSD: number;
   totalValueLockedUSD: number;
+}
+
+/* ===== Uniswap Types ===== */
+export type UniswapPairData = {
+  tokenA: string;
+  tokenB: string;
+  pairAddress: string;
+  reservesA: BigNumber;
+  reservesB: BigNumber;
+  allowanceA?: BigNumber;
+  allowanceB?: BigNumber;
+  balanceB?: BigNumber;
 }
