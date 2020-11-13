@@ -32,6 +32,7 @@ export class InitializerHelper {
   public tokenPrices: { [key: string]: BigNumber } = {};
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};
+  public userCredit: BigNumber = bnum(0);
   private network?: string;
 
   constructor(
@@ -146,6 +147,9 @@ export class InitializerHelper {
     if (!this.userAddress) return;
     const tokens = this.tokens;
     const tokenDatas = await getTokenUserData(this.provider, this.userAddress, this.initializer.address, tokens);
+    const abi = require('./abi/IPoolInitializer.json');
+    let pool = new Contract(this.initializer.address, abi, this.provider);
+    this.userCredit = bnum(await pool.getCreditOf(this.userAddress));
     tokenDatas.forEach(({ allowance, balance }, i) => {
       const address = tokens[i].address;
       this.userAllowances[address] = allowance;
