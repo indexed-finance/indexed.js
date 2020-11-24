@@ -14,7 +14,7 @@ type Token = {
 }
 
 // Returns [tokenAReserves, tokenBReserves]
-async function getReserves(provider: Provider, tokenA: Token, tokenB: Token): Promise<BigNumber[]> {
+export async function getReserves(provider: Provider, tokenA: Token, tokenB: Token): Promise<BigNumber[]> {
   const pairAddress = computeUniswapPairAddress(tokenA.address, tokenB.address);
   const pair = new Contract(pairAddress, PairABI, provider);
   const [reserves0, reserves1] = await pair.getReserves();
