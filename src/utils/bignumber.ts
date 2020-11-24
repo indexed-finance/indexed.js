@@ -28,7 +28,7 @@ export function toTokenAmount(val: BigNumberish, decimals: number): BigNumber {
 }
 
 export function toHex(val: BigNumber): string {
-  return `0x${val.toString(16)}`;
+  return `0x${val.integerValue().toString(16)}`;
 }
 
 export const formatBalance = (

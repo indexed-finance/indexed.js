@@ -28,7 +28,7 @@ const fromFP = (num: BigNumber) => num.div(MAX_UINT112);
 export class InitializerHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
-  private provider: Provider;
+  public provider: Provider;
   public tokenPrices: { [key: string]: BigNumber } = {};
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};

@@ -22,7 +22,7 @@ export type TokenAmount = {
 export class PoolHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
-  private provider: Provider;
+  public provider: Provider;
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};
   public userPoolBalance?: BigNumber;
