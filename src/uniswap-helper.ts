@@ -32,8 +32,9 @@ type TokenAmount = {
 export class UniswapHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
-  private provider: Provider;
+  public provider: Provider;
   public tokenABalance?: BigNumber;
+  public ethBalance?: BigNumber;
   public tokens: Token[];
   public pairs: UniswapPairData[];
 
@@ -55,7 +56,10 @@ export class UniswapHelper {
 
   async update(): Promise<void> {
     const uniData = await getUniswapData(this.provider, this.tokenA, this.tokenWhitelist, this.userAddress);
+    const ethBalance = await this.provider.getBalance(this.userAddress);
+
     this.pairs = uniData.pairs;
+    this.ethBalance = toBN(ethBalance);
     this.tokenABalance = uniData.tokenABalance;
   }
 
