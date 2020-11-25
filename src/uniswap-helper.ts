@@ -76,8 +76,11 @@ export class UniswapHelper {
     await this.update();
   }
 
-  public setUserAddress(address: string): void {
+  public async setUserAddress(address: string): Promise<void> {
+    const ethBalance = await this.provider.getBalance(this.userAddress);
+
     this.userAddress = address;
+    this.ethBalance = toBN(ethBalance);
     this.waitForUpdate = this.update();
   }
 
