@@ -179,7 +179,6 @@ export async function getUniswapData(
       allowanceA = bmath.bnum(chunk[1]);
       allowanceB = bmath.bnum(chunk[2]);
     }
-    console.log(`J ${j} RI ${rI}`)
     const [reserves0, reserves1] = chunk[rI];
     if (token0 == tokenA) {
       reservesA = bmath.bnum(reserves0);
