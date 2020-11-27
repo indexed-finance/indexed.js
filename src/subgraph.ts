@@ -121,7 +121,7 @@ export const parsePoolData = (
       isPublic: p.isPublic,
       totalSupply: bmath.bnum(p.totalSupply),
       maxTotalSupply: bmath.bnum(p.maxTotalSupply),
-      totalVolumeUSD: bmath.bnum(p.maxTotalSupply),
+      totalVolumeUSD: bmath.bnum(p.totalVolumeUSD),
       totalWeight: bmath.bnum(p.totalWeight),
       swapFee: p.isPublic ? bmath.scale(bmath.bnum(p.swapFee), 18) : bmath.bnum(0),
     };
