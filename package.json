@@ -1,6 +1,11 @@
 {
+<<<<<<< HEAD
   "name": "ndx-dummy",
   "version": "1.8.0",
+=======
+  "name": "@indexed-finance/indexed.js",
+  "version": "1.0.21",
+>>>>>>> ce5c160ac98c7a9a30df4341ba6fcf73321bb681
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
