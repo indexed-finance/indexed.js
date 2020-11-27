@@ -5,7 +5,7 @@ import * as bmath from './bmath';
 import { InitializedPoolUpdate, PoolTokenUpdate, UniswapPairData } from './types';
 import { AddressLike, computeUniswapPairAddress, sortTokens, toAddress } from './utils/address';
 import { BigNumber, toBN } from './utils/bignumber';
-import { toProvider, web3 } from './utils/provider';
+import { toProvider } from './utils/provider';
 
 export async function getCurrentPoolData(
   provider_: any,
