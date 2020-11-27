@@ -133,6 +133,7 @@ export type PoolDailySnapshot = {
   dailyFeesUSD: number;
   dailySwapVolumeUSD: number;
   totalValueLockedUSD: number;
+  totalVolumeUSD: number;
 }
 
 /* ===== Uniswap Types ===== */

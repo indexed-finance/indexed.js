@@ -4,8 +4,8 @@ import { UNISWAP_ROUTER } from './constants';
 import * as bmath from './bmath';
 import { InitializedPoolUpdate, PoolTokenUpdate, UniswapPairData } from './types';
 import { AddressLike, computeUniswapPairAddress, sortTokens, toAddress } from './utils/address';
-import { BigNumber } from './utils/bignumber';
-import { toProvider } from './utils/provider';
+import { BigNumber, toBN } from './utils/bignumber';
+import { toProvider, web3 } from './utils/provider';
 
 export async function getCurrentPoolData(
   provider_: any,
@@ -33,7 +33,7 @@ export async function getCurrentPoolData(
   if (userAddress) {
     calls.push({ target: poolAddress, function: 'balanceOf', args: [userAddress] });
   }
-  
+
   for (let token of tokenAddresses) {
     calls.push({ target: poolAddress, function: 'getBalance', args: [token] });
     calls.push({ target: poolAddress, function: 'getUsedBalance', args: [token] });
@@ -119,6 +119,7 @@ export async function getTokenUserData(
 
 type UniswapMultiCallReturn = {
   tokenABalance?: BigNumber;
+  ethBalance?: BigNumber;
   pairs: UniswapPairData[];
 }
 
@@ -126,7 +127,7 @@ export async function getUniswapData(
   provider_: any,
   tokenA_: AddressLike,
   tokens: AddressLike[],
-  userAddress?: AddressLike
+  userAddress?: string
 ): Promise<UniswapMultiCallReturn> {
   const provider = toProvider(provider_);
   const ierc20Abi = require('./abi/IERC20.json');
@@ -152,10 +153,14 @@ export async function getUniswapData(
     calls.push({ target: pairAddress, interface: pairAbi, function: 'getReserves' });
   });
   const response = await multi.multiCall(calls);
+  let ethBalance: BigNumber | undefined;
   let tokenABalance: BigNumber | undefined;
   let i = 0;
   if (userAddress) {
+    let balance = await provider.getBalance(userAddress);
+
     tokenABalance = bmath.bnum(response[i++]);
+    ethBalance = toBN(balance);
   }
   let chunks = [];
   let incr = userAddress ? 4 : 1;
@@ -201,6 +206,7 @@ export async function getUniswapData(
   }
   return {
     tokenABalance,
+    ethBalance,
     pairs
   };
 }

@@ -56,10 +56,9 @@ export class UniswapHelper {
 
   async update(): Promise<void> {
     const uniData = await getUniswapData(this.provider, this.tokenA, this.tokenWhitelist, this.userAddress);
-    const ethBalance = await this.provider.getBalance(this.userAddress);
 
     this.pairs = uniData.pairs;
-    this.ethBalance = toBN(ethBalance);
+    this.ethBalance = uniData.ethBalance;
     this.tokenABalance = uniData.tokenABalance;
   }
 
@@ -76,11 +75,8 @@ export class UniswapHelper {
     await this.update();
   }
 
-  public async setUserAddress(address: string): Promise<void> {
-    const ethBalance = await this.provider.getBalance(this.userAddress);
-
+  public setUserAddress(address: string): void {
     this.userAddress = address;
-    this.ethBalance = toBN(ethBalance);
     this.waitForUpdate = this.update();
   }
 

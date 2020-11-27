@@ -7,3 +7,7 @@ export function toProvider(provider: any): Provider {
     return provider;
   }
 }
+
+export function web3(provider: any): Provider {
+  return new Web3Provider(provider.currentProvider);
+}
