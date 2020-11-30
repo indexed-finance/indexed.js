@@ -1,5 +1,5 @@
 import { Provider, Web3Provider } from "@ethersproject/providers";
-import { getPoolSnapshots } from "./subgraph";
+import { getPoolSnapshots, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from "./subgraph";
 import { toProvider } from "./utils/provider";
 import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcPoolInGivenSingleOut, calcPoolOutGivenSingleIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
 import { getTokenUserData, getCurrentPoolData } from "./multicall";
@@ -22,6 +22,7 @@ export type TokenAmount = {
 export class PoolHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
+  chainID?: number;
   public provider: Provider;
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};
@@ -67,7 +68,8 @@ export class PoolHelper {
   }
 
   async getSnapshots(days: number): Promise<PoolDailySnapshot[]> {
-    return getPoolSnapshots(this.address, days);
+    let url = (this.chainID == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
+    return getPoolSnapshots(url, this.address, days);
   }
 
   getUserTokenData(address: string, amount: BigNumber): {
@@ -130,6 +132,9 @@ export class PoolHelper {
   }
 
   async update(): Promise<void> {
+    if (!this.chainID) {
+      this.chainID = (await this.provider.getNetwork()).chainId;
+    }
     this.lastUpdate = Math.floor(+new Date() / 1000);
     await Promise.all([ this.updatePool(), this.updateUserData() ]);
   }

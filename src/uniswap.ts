@@ -76,7 +76,6 @@ export async function getAllTokenPairs(provider_: any, token: string, whitelist:
   const provider = toProvider(provider_);
   const proms: Promise<Pair | null>[] = whitelist.map((tokenB) => {
     const pairAddress = computeUniswapPairAddress(token, tokenB);
-    console.log(pairAddress)
     return provider.getCode(pairAddress).then((c) => {
       if (!c || c === '0x') return null;
       return {

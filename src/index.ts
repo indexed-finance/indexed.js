@@ -1,18 +1,22 @@
-import { getPools } from './subgraph';
+import { getPools, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from './subgraph';
 export * from './multicall';
 import * as bmath from './bmath';
 import { UninitializedPool } from './types';
 import { PoolHelper } from './pool-helper';
 import { InitializerHelper } from './initializer-helper';
+import { toProvider } from './utils/provider';
 export * from './utils/bignumber';
 export { bmath, getPools, PoolHelper };
 export { UniswapHelper } from './uniswap-helper';
 
-export async function getAllHelpers(provider: any, userAddress?: string): Promise<{
+export async function getAllHelpers(provider_: any, userAddress?: string): Promise<{
   initialized: PoolHelper[],
   uninitialized: InitializerHelper[],
 }> {
-  const poolDatas = await getPools();
+  const provider = toProvider(provider_);
+  const network = (await provider.getNetwork()).chainId;
+  let url = (network == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
+  const poolDatas = await getPools(url);
   const initialized: PoolHelper[] = [];
   const uninitialized: InitializerHelper[] = [];
   for (let poolData of poolDatas) {

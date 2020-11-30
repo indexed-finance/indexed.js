@@ -33,7 +33,7 @@ export class InitializerHelper {
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};
   public userCredit: BigNumber = bnum(0);
-  private network?: string;
+  private chainID?: number;
 
   constructor(
     provider: any,
@@ -84,10 +84,10 @@ export class InitializerHelper {
   }
 
   async getOracle(): Promise<Contract> {
-    if (!this.network) {
-      this.network = await this.provider.getNetwork().then(n => n.name);
+    if (!this.chainID) {
+      this.chainID = await this.provider.getNetwork().then(n => n.chainId);
     }
-    const network = this.network;
+    const network = this.chainID == 1 ? 'mainnet' : 'rinkeby';
     const oracleAddress = deployments[network].uniswapOracle;
     const oracleABI = require('./abi/IIndexedUniswapV2Oracle.json');
     return new Contract(oracleAddress, oracleABI, this.provider);
@@ -161,7 +161,7 @@ export class InitializerHelper {
     const initializerAbi = require('./abi/IPoolInitializer.json');
     const initializer = new Contract(this.initializer.address, initializerAbi, this.provider);
     const tokens = this.tokens.map(t => t.address);
-    const desiredAmounts = (await initializer.getDesiredAmounts(tokens)).map(bnum);
+    const desiredAmounts = (await initializer.getDesiredAmounts(tokens, { gasLimit: 1000000 })).map(bnum);
     const prices = await this.getPrices(tokens);
     desiredAmounts.forEach((amount, i) => {
       const token = this.tokens[i];

@@ -3,9 +3,10 @@ import * as bmath from './bmath';
 import { Pool, PoolDailySnapshot, Token } from './types';
 import { BigNumber } from './utils/bignumber';
 
-const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-v1';
-const UNISWAP_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2';
-const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/samgos/uniswap-v2-rinkeby';
+export const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed';
+export const INDEXED_RINKEBY_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-v1';
+export const UNISWAP_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2';
+export const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/samgos/uniswap-v2-rinkeby';
 
 const poolQuery = `
 id
@@ -71,7 +72,7 @@ const executeQuery = async (query: string, url: string = INDEXED_SUBGRAPH_URL): 
   return data;
 }
 
-export async function getPools(): Promise<Pool[]> {
+export async function getPools(url: string): Promise<Pool[]> {
   const query = `
     {
       indexPools (first: 1000) {
@@ -80,11 +81,11 @@ export async function getPools(): Promise<Pool[]> {
     }
   `;
 
-  const { indexPools } = await executeQuery(query)
+  const { indexPools } = await executeQuery(query, url)
   return parsePoolData(indexPools);
 }
 
-export async function getPool(address: string): Promise<Pool> {
+export async function getPool(url: string, address: string): Promise<Pool> {
   const query = `
     {
       indexPool(id: "${address}") {
@@ -93,7 +94,7 @@ export async function getPool(address: string): Promise<Pool> {
     }
   `;
 
-  const { indexPool } = await executeQuery(query)
+  const { indexPool } = await executeQuery(query, url)
   const [pool] = await parsePoolData([ indexPool ]);
   return pool;
 }
@@ -190,8 +191,8 @@ const tokenDayDataQuery = (tokenAddress, days) => `
 }
 `
 
-export async function getTokenPrice(address: string): Promise<BigNumber> {
-  const { tokenDayDatas } = await executeQuery(tokenDayDataQuery(address, 1), UNISWAP_SUBGRAPH_URL_RINKEBY);
+export async function getTokenPrice(url: string, address: string): Promise<BigNumber> {
+  const { tokenDayDatas } = await executeQuery(tokenDayDataQuery(address, 1), url);
   const tokenDayData = tokenDayDatas[0];
   return bmath.bnum(tokenDayData.priceUSD);
 }
@@ -212,8 +213,8 @@ const poolSnapshotsQuery = (poolAddress: string, days: number) => `
 }
 `
 
-export async function getPoolSnapshots(poolAddress: string, days: number): Promise<PoolDailySnapshot[]> {
-  const { dailyPoolSnapshots } = await executeQuery(poolSnapshotsQuery(poolAddress, days + 1), INDEXED_SUBGRAPH_URL);
+export async function getPoolSnapshots(url: string, poolAddress: string, days: number): Promise<PoolDailySnapshot[]> {
+  const { dailyPoolSnapshots } = await executeQuery(poolSnapshotsQuery(poolAddress, days + 1), url);
   return parsePoolSnapshots(dailyPoolSnapshots);
 }
 
