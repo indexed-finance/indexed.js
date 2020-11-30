@@ -17,7 +17,7 @@ export function toChecksum(obj: AddressLike): string {
 const addressToBuffer = (address: string): Buffer => Buffer.from(address.slice(2).padStart(40, '0'), 'hex');
 
 export function sortTokens(tokenA: string, tokenB: string): string[] {
-  return (tokenA < tokenB) ? [tokenA, tokenB] : [tokenB, tokenA];
+  return (tokenA.toLowerCase() < tokenB.toLowerCase()) ? [tokenA, tokenB] : [tokenB, tokenA];
 }
 
 export function computeUniswapPairAddress(tokenA: string, tokenB: string): string {
