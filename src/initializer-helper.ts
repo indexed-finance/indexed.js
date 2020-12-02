@@ -206,7 +206,7 @@ export class InitializerHelper {
     const amount = bnum(amount_);
     const address = toAddress(token_);
     const token = this.getTokenByAddress(address);
-    const credit = this.tokenPrices[address].times(amount);
+    const credit = this.tokenPrices[address.toLowerCase()].times(amount);
     return {
       credit: toHex(credit),
       displayCredit: formatBalance(credit, 18, 4),
