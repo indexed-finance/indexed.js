@@ -21,7 +21,7 @@ export default {
     weth: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
     dai: '0x6b175474e89094c44da98b954eedeac495271d0f',
     uniswapOracle: '0xFa5a44D3Ba93D666Bf29C8804a36e725ecAc659A',
-    controller: '0xc95535fA2B32964e15b7fD490c6734BD2797D605',
-    poolFactory: '0xeB3D1522AA0451d8f9A82fee42b72Abe503AdAAE'
+    controller: '0xF00A38376C8668fC1f3Cd3dAeef42E0E44A7Fcdb',
+    poolFactory: '0x592f70cE43a310D15fF59BE1460F38Ab6DF3Fe65'
   }
 }
