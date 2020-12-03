@@ -253,13 +253,14 @@ export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
 
       let dailyFeesUSD = (+feesTotalUSD) - lastFeesTotal;
       let dailySwapVolumeUSD = (+totalSwapVolumeUSD) - lastSwapVolumeTotal;
+      let dailyVolumeUSD = (+totalVolumeUSD) - lastVolumeTotal;
       let diff = (+date) - (lastDate);
       if (diff > 3600) {
         let numHours = (diff / 3600) - 1;
         let feesEachHour = dailyFeesUSD / numHours;
         let swapVolumeEachHour = dailySwapVolumeUSD / numHours;
         let supplyEachHour = (+totalSupply - lastSupply) / numHours;
-        let volumeEachHour = (+totalVolumeUSD - lastVolumeTotal) / numHours;
+        let volumeEachHour = dailyVolumeUSD / numHours;
         let valueEachHour = (+value - lastValue) / numHours;
         let tvlEachHour = (+totalValueLockedUSD - lastTotalValue) / numHours;
         for (let i = 1; i <= numHours; i++) {
@@ -289,7 +290,7 @@ export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
         dailyFeesUSD: +dailyFeesUSD,
         totalValueLockedUSD: +totalValueLockedUSD,
         dailySwapVolumeUSD: +dailySwapVolumeUSD,
-        totalVolumeUSD: +totalVolumeUSD
+        totalVolumeUSD: +dailyVolumeUSD
       });
     }
 
