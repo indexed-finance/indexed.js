@@ -134,13 +134,19 @@ export class InitializerHelper {
   async getPrices(tokens_: AddressLike[]): Promise<BigNumber[]> {
     const tokens = tokens_.map(toAddress);
     const oracle = await this.getOracle();
-    const prices = await oracle.computeAverageTokenPrices(
-      tokens,
-      INITIALIZER_MIN_TWAP,
-      INITIALIZER_MAX_TWAP
-    );
-    const fpValues = prices.map(p => fromFP(bnum(p._x)));
-    return fpValues;
+
+    try {
+      const prices = await oracle.computeAverageTokenPrices(
+        tokens,
+        INITIALIZER_MIN_TWAP,
+        INITIALIZER_MAX_TWAP
+      );
+      const fpValues = prices.map(p => fromFP(bnum(p._x)));
+      return fpValues;
+    } catch (e) {
+      const emptyArray = new Array(tokens.length);
+      return emptyArray.fill(new BigNumber(0));
+    }
   }
 
   async updateUserData(): Promise<void> {
@@ -162,7 +168,13 @@ export class InitializerHelper {
     const initializer = new Contract(this.initializer.address, initializerAbi, this.provider);
     const tokens = this.tokens.map(t => t.address);
     const desiredAmounts = (await initializer.getDesiredAmounts(tokens, { gasLimit: 1000000 })).map(bnum);
+
+    console.log('UPDATING TOKENS', tokens)
+
     const prices = await this.getPrices(tokens);
+
+    console.log('UPDATED TOKENS', prices);
+
     desiredAmounts.forEach((amount, i) => {
       const token = this.tokens[i];
       const targetBalance = token.targetBalance;
