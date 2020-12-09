@@ -55,7 +55,7 @@ export class UniswapHelper {
   }
 
   async update(): Promise<void> {
-    const uniData = await getUniswapData(this.provider, this.tokenA, this.tokenWhitelist, this.userAddress);
+    const uniData = await getUniswapData(this.provider, this.tokenA, this.tokens, this.userAddress);
 
     this.pairs = uniData.pairs;
     this.ethBalance = uniData.ethBalance;
@@ -64,15 +64,18 @@ export class UniswapHelper {
 
   private async setValidPairs(): Promise<void> {
     let tokensWithPairs: Token[] = [];
+
     const proms = this.tokenWhitelist.map(async (token) => {
       const pairAddress = computeUniswapPairAddress(this.tokenA.address, token.address);
       const code = await this.provider.getCode(pairAddress);
+
       if (!code || code == '0x') return null;
       tokensWithPairs.push(token);;
     })
     await Promise.all(proms);
     this.tokens = tokensWithPairs;
-    await this.update();
+
+    return await this.update();
   }
 
   public setUserAddress(address: string): void {
