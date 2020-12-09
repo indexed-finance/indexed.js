@@ -1,6 +1,6 @@
 export default {
   rinkeby: {
-    uniswapOracle: '0x8C5bAe4c044b8CaD35F36adb62D22cFaF97bC79b',// This is actually the oracle fallthrough
+    uniswapOracle: '0xe351Dc5542C9aD053c75C4e712ee6Bc5EA92AE31',// This is actually the oracle fallthrough
     bal: '0x3a8B75f412ab60C6F482944b4521df1c22e9FFE9',
     bat: '0x1E16488078bd7e89D34F0ef46E427cFd72a66Df9',
     comp: '0xbbEB7c67fa3cfb40069D19E598713239497A3CA5',

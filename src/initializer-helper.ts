@@ -144,6 +144,7 @@ export class InitializerHelper {
       const fpValues = prices.map(p => fromFP(bnum(p._x)));
       return fpValues;
     } catch (e) {
+      console.log(e)
       const emptyArray = new Array(tokens.length);
       return emptyArray.fill(new BigNumber(0));
     }
