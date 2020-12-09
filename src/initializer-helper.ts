@@ -168,12 +168,7 @@ export class InitializerHelper {
     const initializer = new Contract(this.initializer.address, initializerAbi, this.provider);
     const tokens = this.tokens.map(t => t.address);
     const desiredAmounts = (await initializer.getDesiredAmounts(tokens, { gasLimit: 1000000 })).map(bnum);
-
-    console.log('UPDATING TOKENS', tokens)
-
     const prices = await this.getPrices(tokens);
-
-    console.log('UPDATED TOKENS', prices);
 
     desiredAmounts.forEach((amount, i) => {
       const token = this.tokens[i];
