@@ -14,16 +14,16 @@ export async function getAllHelpers(provider_: any, userAddress?: string): Promi
   uninitialized: InitializerHelper[],
 }> {
   const provider = toProvider(provider_);
-  const network = (await provider.getNetwork()).chainId;
-  let url = (network == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
+  const chainID = (await provider.getNetwork()).chainId;
+  let url = (chainID == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
   const poolDatas = await getPools(url);
   const initialized: PoolHelper[] = [];
   const uninitialized: InitializerHelper[] = [];
   for (let poolData of poolDatas) {
     if (poolData.isPublic) {
-      initialized.push(new PoolHelper(provider, poolData, userAddress));
+      initialized.push(new PoolHelper(provider, chainID, poolData, userAddress));
     } else {
-      uninitialized.push(new InitializerHelper(provider, poolData as UninitializedPool, userAddress));
+      uninitialized.push(new InitializerHelper(provider, chainID, poolData as UninitializedPool, userAddress));
     }
   }
   return { initialized, uninitialized };

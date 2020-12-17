@@ -33,10 +33,10 @@ export class InitializerHelper {
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};
   public userCredit: BigNumber = bnum(0);
-  private chainID?: number;
 
   constructor(
     provider: any,
+    public chainID: number,
     public pool: UninitializedPool,
     public userAddress?: string
   ) {
@@ -84,9 +84,6 @@ export class InitializerHelper {
   }
 
   async getOracle(): Promise<Contract> {
-    if (!this.chainID) {
-      this.chainID = await this.provider.getNetwork().then(n => n.chainId);
-    }
     const network = this.chainID == 1 ? 'mainnet' : 'rinkeby';
     const oracleAddress = deployments[network].uniswapOracle;
     const oracleABI = require('./abi/IIndexedUniswapV2Oracle.json');

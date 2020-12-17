@@ -22,7 +22,6 @@ export type TokenAmount = {
 export class PoolHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
-  chainID?: number;
   public provider: Provider;
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};
@@ -30,6 +29,7 @@ export class PoolHelper {
 
   constructor(
     provider: any,
+    public chainID: number,
     public pool: InitializedPool,
     public userAddress?: string
   ) {
@@ -132,9 +132,6 @@ export class PoolHelper {
   }
 
   async update(): Promise<void> {
-    if (!this.chainID) {
-      this.chainID = (await this.provider.getNetwork()).chainId;
-    }
     this.lastUpdate = Math.floor(+new Date() / 1000);
     await Promise.all([ this.updatePool(), this.updateUserData() ]);
   }
