@@ -62,6 +62,7 @@ export type InitializedPool = BasePool & {
   totalValueLockedUSD: string;
   totalSwapVolumeUSD: string;
   initializer: string;
+  snapshots: PoolDailySnapshot[];
 };
 
 export type UninitializedPool = BasePool & {

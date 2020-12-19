@@ -55,6 +55,16 @@ tokens {
   denorm
   desiredDenorm
 }
+dailySnapshots(orderBy: date, orderDirection: desc, first: 90) {
+  id
+  date
+  value
+  totalSupply
+  feesTotalUSD
+  totalValueLockedUSD
+  totalSwapVolumeUSD
+  totalVolumeUSD
+}
 `;
 
 const executeQuery = async (query: string, url: string = INDEXED_SUBGRAPH_URL): Promise<any> => {
@@ -132,6 +142,7 @@ export const parsePoolData = (
       obj.totalSwapVolumeUSD = p.totalSwapVolumeUSD;
       obj.tokens = [];
       obj.initializer = p.poolInitializer.id;
+      obj.snapshots = parsePoolSnapshots(p.dailySnapshots);
       p.tokens.forEach((t) => {
         let token: any = {
           ...toBaseToken(t),
