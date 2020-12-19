@@ -1,9 +1,9 @@
 import { Provider, Web3Provider } from "@ethersproject/providers";
 import { getPoolSnapshots, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from "./subgraph";
 import { toProvider } from "./utils/provider";
-import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcPoolInGivenSingleOut, calcPoolOutGivenSingleIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
+import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcInGivenOut, calcOutGivenIn, calcPoolInGivenSingleOut, calcPoolOutGivenSingleIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
 import { getTokenUserData, getCurrentPoolData } from "./multicall";
-import { InitializedPool, PoolDailySnapshot, PoolToken } from "./types";
+import { InitializedPool, PoolDailySnapshot, PoolToken, Token } from "./types";
 import { BigNumber, BigNumberish, formatBalance, toHex } from './utils/bignumber';
 
 export type TokenAmount = {
@@ -339,5 +339,63 @@ export class PoolHelper {
         displayAmount: formatBalance(amount, partials[i].decimals, 4)
       }
     ], []);
+  }
+
+  async calcOutGivenIn(
+    tokenIn_: string,
+    tokenOut_: string,
+    amountIn: BigNumberish
+  ): Promise<TokenAmount> {
+    if (this.shouldUpdate) {
+      this.waitForUpdate = this.update();
+    }
+    await this.waitForUpdate;
+    const tokenIn = this.getTokenByAddress(tokenIn_);
+    const tokenOut = this.getTokenByAddress(tokenOut_);
+    const amountOut = calcOutGivenIn(
+      tokenIn.usedBalance,
+      tokenIn.usedDenorm,
+      tokenOut.balance,
+      tokenOut.denorm,
+      bnum(amountIn),
+      this.pool.swapFee
+    );
+    const { symbol, address, decimals } = tokenOut;
+    return {
+      symbol,
+      address,
+      decimals,
+      amount: toHex(amountOut),
+      displayAmount: formatBalance(amountOut, decimals, 4)
+    };
+  }
+
+  async calcInGivenOut(
+    tokenIn_: string,
+    tokenOut_: string,
+    amountOut: BigNumberish
+  ): Promise<TokenAmount> {
+    if (this.shouldUpdate) {
+      this.waitForUpdate = this.update();
+    }
+    await this.waitForUpdate;
+    const tokenIn = this.getTokenByAddress(tokenIn_);
+    const tokenOut = this.getTokenByAddress(tokenOut_);
+    const amountIn = calcInGivenOut(
+      tokenIn.usedBalance,
+      tokenIn.usedDenorm,
+      tokenOut.balance,
+      tokenOut.denorm,
+      bnum(amountOut),
+      this.pool.swapFee
+    );
+    const { symbol, address, decimals } = tokenIn;
+    return {
+      symbol,
+      address,
+      decimals,
+      amount: toHex(amountIn),
+      displayAmount: formatBalance(amountIn, decimals, 4)
+    };
   }
 }
