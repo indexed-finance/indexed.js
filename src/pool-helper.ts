@@ -1,7 +1,17 @@
 import { Provider, Web3Provider } from "@ethersproject/providers";
 import { getPoolSnapshots, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from "./subgraph";
 import { toProvider } from "./utils/provider";
-import { bnum, calcAllInGivenPoolOut, calcAllOutGivenPoolIn, calcInGivenOut, calcOutGivenIn, calcPoolInGivenSingleOut, calcPoolOutGivenSingleIn, calcSingleInGivenPoolOut, calcSingleOutGivenPoolIn } from "./bmath";
+import {
+  bnum,
+  calcAllInGivenPoolOut,
+  calcAllOutGivenPoolIn,
+  calcInGivenOut,
+  calcOutGivenIn,
+  calcPoolInGivenSingleOut,
+  calcPoolOutGivenSingleIn,
+  calcSingleInGivenPoolOut,
+  calcSingleOutGivenPoolIn
+} from "./bmath";
 import { getTokenUserData, getCurrentPoolData } from "./multicall";
 import { InitializedPool, PoolDailySnapshot, PoolToken, Token } from "./types";
 import { BigNumber, BigNumberish, formatBalance, toHex } from './utils/bignumber';
