@@ -98,7 +98,7 @@ export default class Minter {
   }
 
   get minterAddress(): string {
-    return this.chainID == 1 ? '0x56cB0C7523a640249e1d10c892E5c03A3bC2C37F' : '0x5A8a169a86A63741A769de61E258848746A84094';
+    return this.chainID == 1 ? '0xfb6Ac20d38A1F0C4f90747CA0745E140bc17E4C3' : '0x5A8a169a86A63741A769de61E258848746A84094';
   }
 
   async updateUserBalances() {
