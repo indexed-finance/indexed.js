@@ -25,6 +25,7 @@ feesTotalUSD
 totalValueLockedUSD
 totalVolumeUSD
 totalSwapVolumeUSD
+tokensList
 poolInitializer {
   id
   totalCreditedWETH
@@ -137,10 +138,13 @@ export const parsePoolData = (
       swapFee: p.isPublic ? bmath.scale(bmath.bnum(p.swapFee), 18) : bmath.bnum(0),
     };
     if (p.isPublic) {
+      let tokenIndices = p.tokensList.reduce((tks, address, i) => ({
+        ...tks, [address]: i
+      }), {});
       obj.feesTotalUSD = p.feesTotalUSD;
       obj.totalValueLockedUSD = p.totalValueLockedUSD;
       obj.totalSwapVolumeUSD = p.totalSwapVolumeUSD;
-      obj.tokens = [];
+      obj.tokens = new Array(p.tokens.length).fill(null);
       obj.initializer = p.poolInitializer.id;
       obj.snapshots = parsePoolSnapshots(p.dailySnapshots);
       p.tokens.forEach((t) => {
@@ -170,7 +174,9 @@ export const parsePoolData = (
         if (t.minimumBalance) {
           token.minimumBalance = bmath.bnum(token.minimumBalance);
         }
-        obj.tokens.push(token);
+        let index = tokenIndices[token.address];
+        obj.tokens[index] = token;
+        //.push(token);
       });
     } else {
       obj.initializer = {
