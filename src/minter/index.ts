@@ -50,6 +50,8 @@ const getWethAddress = (chainID: number) => getAddress(
     : '0x72710B0b93c8F86aEf4ec8bd832868A15df50375'
 );
 
+const zeroAddress = `0x${'00'.repeat(20)}`;
+
 export default class Minter {
   public waitForUpdate: Promise<void>;
   public lastUpdateTime: number;
@@ -100,6 +102,8 @@ export default class Minter {
       this.userAllowances[address] = allowance;
       this.userBalances[address] = balance;
     }
+    this.userAllowances[zeroAddress] = new BigNumber(0);
+    this.userBalances[zeroAddress] = await this.provider.getBalance(this.userAddress).then(toBN);
   }
 
   getUserTokenData(token: string): { balance?: BigNumber, allowance?: BigNumber } {
@@ -111,7 +115,13 @@ export default class Minter {
   }
 
   getIndexedTokenAmount(address: string, tokenAmount: TokenAmount): IndexedJSTokenAmount {
-    let { symbol, decimals } = tokenAmount.currency;
+    let symbol: string, decimals: number;
+    if (address == zeroAddress) {
+      symbol = 'ETH';
+      decimals = 18;
+    } else {
+      ({ symbol, decimals } = tokenAmount.currency);
+    }
     let amount = bigintToHex(tokenAmount.raw);
     let displayAmount = formatBalance(toBN(amount), decimals, 4);
     let obj: IndexedJSTokenAmount = {
@@ -329,7 +339,7 @@ export default class Minter {
       .multiply(poolOutput.raw).quotient;
 
     const ethInput = this.getIndexedTokenAmount(
-      this.wethAddress,
+      zeroAddress,
       this.getTokenAmount(this.wethAddress, ethAmountIn)
     );
 
@@ -364,7 +374,7 @@ export default class Minter {
       this.getPoolTokenAmount(helper, poolAmountOut)
     );
     const maxEthInput = this.getIndexedTokenAmount(
-      tokenIn,
+      zeroAddress,
       this.getTokenAmount(tokenIn, bestTrade.maximumAmountIn(slippage).raw)
     );
     return {
@@ -455,7 +465,7 @@ export default class Minter {
     }
     await Promise.all(proms);
 
-    const maxEthInput = this.getIndexedTokenAmount(this.wethAddress, amountInTotal);
+    const maxEthInput = this.getIndexedTokenAmount(zeroAddress, amountInTotal);
     const poolOutput = this.getIndexedTokenAmount(
       this.helper.address,
       this.getPoolTokenAmount(helper, poolAmountOut)
