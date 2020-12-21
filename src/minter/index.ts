@@ -1,4 +1,4 @@
-import { Fetcher, Trade, TokenAmount, Token, Pair, BigintIsh, BestTradeOptions, Fraction, JSBI } from '@uniswap/sdk';
+import { Fetcher, Trade, TokenAmount, Token, Pair, BigintIsh, BestTradeOptions, Fraction, JSBI, Route } from '@uniswap/sdk';
 import { Provider } from '@ethersproject/providers';
 import { getAddress } from 'ethers/lib/utils';
 import { PoolHelper, TokenAmount as IndexedJSTokenAmount  } from '../pool-helper';
@@ -47,10 +47,18 @@ const bigintToHex = (amount: BigintIsh) => {
 const getWethAddress = (chainID: number) => getAddress(
   chainID == 1
     ? '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
-    : '0x72710B0b93c8F86aEf4ec8bd832868A15df50375'
+    : '0xdD94a710009CD1d859fd48D5eb29A1a49dD6135f'
 );
 
 const zeroAddress = `0x${'00'.repeat(20)}`;
+
+function getPair(provider: Provider, tokenA: Token, tokenB: Token): Promise<Pair | void> {
+  if (tokenA.sortsBefore(tokenB)) {
+    return Fetcher.fetchPairData(tokenA, tokenB, provider as any).catch(() => {})
+  } else {
+    return Fetcher.fetchPairData(tokenB, tokenA, provider as any).catch(() => {})
+  }
+}
 
 export default class Minter {
   public waitForUpdate: Promise<void>;
@@ -90,7 +98,7 @@ export default class Minter {
   }
 
   get minterAddress(): string {
-    return this.chainID == 1 ? '0x56cB0C7523a640249e1d10c892E5c03A3bC2C37F' : '0x9B46249Be2895422AcEeFd10005aC04452bdd51d';
+    return this.chainID == 1 ? '0x56cB0C7523a640249e1d10c892E5c03A3bC2C37F' : '0x5A8a169a86A63741A769de61E258848746A84094';
   }
 
   async updateUserBalances() {
@@ -143,6 +151,17 @@ export default class Minter {
     return obj;
   }
 
+  getSinglePair(tokenA: string, tokenB: string): Pair {
+    let a = getAddress(tokenA);
+    let b = getAddress(tokenB);
+    return this.pairs.find(
+      p => (
+        (a == p.token0.address && b == p.token1.address) ||
+        (b == p.token0.address && a == p.token1.address)
+      )
+    );
+  }
+
   getTokenByAddress(address: string): Token {
     return [
       ...this.inputTokens,
@@ -165,20 +184,17 @@ export default class Minter {
 
   async setPairsInitial() {
     const pairs = [];
-    for (let tokenA of this.inputTokens) {
+    for (let i = 0; i < this.inputTokens.length; i++) {
+      let tokenA = this.inputTokens[i];
+      for (let j = i + 1; j < this.inputTokens.length; j++) {
+        pairs.push(getPair(this.provider, tokenA, this.inputTokens[j]));
+      }
       for (let tokenB of this.poolTokens) {
-        if (tokenA.sortsBefore(tokenB)) {
-          pairs.push(
-            Fetcher.fetchPairData(tokenA, tokenB, this.provider as any).catch(() => {})
-          );
-        } else {
-          pairs.push(
-            Fetcher.fetchPairData(tokenB, tokenA, this.provider as any).catch(() => {})
-          );
-        }
+        pairs.push(getPair(this.provider, tokenA, tokenB));
       }
     }
     this.pairs = (await Promise.all(pairs)).filter(x => x);
+    console.log(`Got Pairs:: ${this.pairs.length}`)
     this.lastUpdateTime = this.timestamp;
   }
 
@@ -412,7 +428,22 @@ export default class Minter {
     };
   }
 
-  protected async getParams_TokenForAllTokens(
+  protected getMaxCostSingleInput(
+    tokenIn: string,
+    tokenOut: string,
+    amountOut: string,
+    slippage: Fraction
+  ): TokenAmount {
+    const pair = this.getSinglePair(tokenIn, tokenOut);
+    console.log(pair)
+    const trade = Trade.exactOut(
+      new Route([pair], this.getTokenByAddress(tokenIn), this.getTokenByAddress(tokenOut)),
+      this.getTokenAmount(tokenIn, amountOut)
+    );
+    return this.getTokenAmount(tokenIn, trade.maximumAmountIn(slippage).raw);
+  }
+
+  public async getParams_TokenForAllTokens(
     tokenIn: string,
     poolAmountOut: string,
     options?: MintOptions
@@ -421,24 +452,34 @@ export default class Minter {
     const helper = this.helper;
     const amountsIn = await helper.calcAllInGivenPoolOut(poolAmountOut);
     let amountInTotal = this.getTokenAmount(tokenIn, '0');
-    for (let amount of amountsIn) {
-      const bestTrade = await this.bestTradeExactOut(tokenIn, amount.address, amount.amount)
-      amountInTotal = amountInTotal.add(bestTrade.maximumAmountIn(slippage) as TokenAmount);
-    }
+
+    const intermediaries: string[] = await Promise.all(
+      amountsIn.map(async (amount, i) => {
+        const bestTrade = await this.bestTradeExactOut(tokenIn, amount.address, amount.amount, { maxHops: 2 });
+        amountInTotal = amountInTotal.add(bestTrade.maximumAmountIn(slippage) as TokenAmount);
+        if (bestTrade.route.path.length != 2) {
+          console.log(`Got Token For I ${i}`)
+          return bestTrade.route.path[1].address;
+        }
+        return zeroAddress;
+      })
+    );
 
     const maxTokenInput = this.getIndexedTokenAmount(tokenIn, amountInTotal);
     const poolOutput = this.getIndexedTokenAmount(
       this.helper.address,
       this.getPoolTokenAmount(helper, poolAmountOut)
     );
+
     return {
       fn: 'swapTokensForAllTokensAndMintExact',
       maxTokenInput,
-      poolOutput
+      poolOutput,
+      intermediaries
     };
   }
 
-  protected async getParams_EthForAllTokens(
+  public async getParams_EthForAllTokens(
     poolAmountOut: string,
     options?: MintOptions
   ): Promise<{
@@ -450,20 +491,18 @@ export default class Minter {
     const amountsIn = await helper.calcAllInGivenPoolOut(poolAmountOut);
     let amountInTotal = this.getTokenAmount(this.wethAddress, '0');
     const trades: Trade[] = [];
-    const proms: Promise<void>[] = [];
-    for (let amount of amountsIn) {
-      proms.push(
-        this.bestTradeExactOut(
-          this.wethAddress,
-          amount.address,
-          amount.amount
-        ).then((bestTrade) => {
-          amountInTotal = amountInTotal.add(bestTrade.maximumAmountIn(slippage) as TokenAmount);
-          trades.push(bestTrade)
-        })
-      );
-    }
-    await Promise.all(proms);
+
+
+    const intermediaries: string[] = await Promise.all(
+      amountsIn.map(async (amount) => {
+        const bestTrade = await this.bestTradeExactOut(this.wethAddress, amount.address, amount.amount, { maxHops: 2 });
+        amountInTotal = amountInTotal.add(bestTrade.maximumAmountIn(slippage) as TokenAmount);
+        if (bestTrade.route.path.length != 2) {
+          return bestTrade.route.path[1].address;
+        }
+        return zeroAddress;
+      })
+    );
 
     const maxEthInput = this.getIndexedTokenAmount(zeroAddress, amountInTotal);
     const poolOutput = this.getIndexedTokenAmount(
@@ -475,7 +514,8 @@ export default class Minter {
       params: {
         fn: 'swapETHForAllTokensAndMintExact',
         maxEthInput,
-        poolOutput
+        poolOutput,
+        intermediaries
       },
       trades
     };
@@ -505,7 +545,7 @@ export default class Minter {
     poolAmountOut: string,
     options?: MintOptions
   ): Promise<MintParams_TokensForAllTokensAndMintExact | MintParams_TokensForTokensAndMintExact> {
-    const all = await this.getParams_TokenForAllTokens(tokenIn, poolAmountOut, options);
+    const all = await this.getParams_TokenForAllTokens(tokenIn, poolAmountOut, options && { slippage: options.slippage });
     const single = await this.getParams_TokensForExactPoolTokens(tokenIn, poolAmountOut, options);
     if (
       !single ||
@@ -532,7 +572,7 @@ export default class Minter {
     const bestMulti = await this.getParams_TokenForAllTokens(
       tokenIn,
       bestSingle.minPoolOutput.amount,
-      options
+      options && { slippage: options.slippage }
     );
     if (
       toBN(bestSingle.tokenInput.amount).lt(
