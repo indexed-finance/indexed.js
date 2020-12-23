@@ -1,6 +1,7 @@
 import { Fetcher, Trade, TokenAmount, Token, Pair, BigintIsh, BestTradeOptions, Fraction, JSBI, Route } from '@uniswap/sdk';
 import { Provider } from '@ethersproject/providers';
 import { getAddress } from 'ethers/lib/utils';
+import { Contract } from 'ethers';
 import { PoolHelper, TokenAmount as IndexedJSTokenAmount  } from '../pool-helper';
 import { toBN, formatBalance, toHex, BigNumber } from '../utils/bignumber';
 import { toProvider } from '../utils/provider';
@@ -25,7 +26,8 @@ export type TokenInput = {
 };
 
 export type MintOptions = BestTradeOptions & {
-  slippage?: number
+  slippage?: number,
+  gasPrice?: number
 };
 
 export type IndexedJSTokenAmountWithCost = IndexedJSTokenAmount & { cost: number };
@@ -99,6 +101,20 @@ export default class Minter {
 
   get minterAddress(): string {
     return this.chainID == 1 ? '0xfb6Ac20d38A1F0C4f90747CA0745E140bc17E4C3' : '0x5A8a169a86A63741A769de61E258848746A84094';
+  }
+
+  async canMintSingle_PoolAmountOut(poolToken: string, poolAmountOut: BigNumber): Promise<{
+    canMint: boolean,
+    amountIn?: IndexedJSTokenAmount
+  }> {
+    const poolRatio = poolAmountOut.div(this.helper.pool.totalSupply);
+    const extrapolatedValue = this.helper.extrapolateValue(poolToken);
+    const roughEstimate = extrapolatedValue.times(poolRatio);
+    const maxAmountIn = this.helper.getTokenByAddress(poolToken).usedBalance.div(2);
+    if (roughEstimate.gt(maxAmountIn)) return { canMint: false };
+    const amountIn = await this.helper.calcSingleInGivenPoolOut(poolToken, poolAmountOut);
+    if (toBN(amountIn.amount).gt(maxAmountIn)) return { canMint: false };
+    return { canMint: true, amountIn };
   }
 
   async updateUserBalances() {
@@ -262,11 +278,12 @@ export default class Minter {
   protected async getCheapestSingleInput(poolAmountOut: string): Promise<IndexedJSTokenAmount & { cost: number }> {
     const helper = this.helper;
     const allTokens = helper.tokens;
-    const proms: Promise<IndexedJSTokenAmount>[] = [];
+    const proms: Promise<{ canMint: boolean; amountIn?: IndexedJSTokenAmount}>[] = [];
     for (let token of allTokens) {
-      proms.push(helper.calcSingleInGivenPoolOut(token.address, poolAmountOut));
+      proms.push(this.canMintSingle_PoolAmountOut(token.address, toBN(poolAmountOut)));
     }
-    const allSingleAmounts: IndexedJSTokenAmountWithCost[] = (await Promise.all(proms)).map((input) => ({
+    const res = (await Promise.all(proms)).filter(r => r.canMint).map(r => r.amountIn);
+    const allSingleAmounts: IndexedJSTokenAmountWithCost[] = res.map((input) => ({
       ...input,
       cost: parseFloat(
         formatBalance(toBN(input.amount), input.decimals, 10)
