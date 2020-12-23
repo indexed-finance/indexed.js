@@ -194,7 +194,6 @@ export default class Minter {
       }
     }
     this.pairs = (await Promise.all(pairs)).filter(x => x);
-    console.log(`Got Pairs:: ${this.pairs.length}`)
     this.lastUpdateTime = this.timestamp;
   }
 
@@ -435,7 +434,6 @@ export default class Minter {
     slippage: Fraction
   ): TokenAmount {
     const pair = this.getSinglePair(tokenIn, tokenOut);
-    console.log(pair)
     const trade = Trade.exactOut(
       new Route([pair], this.getTokenByAddress(tokenIn), this.getTokenByAddress(tokenOut)),
       this.getTokenAmount(tokenIn, amountOut)
@@ -458,7 +456,6 @@ export default class Minter {
         const bestTrade = await this.bestTradeExactOut(tokenIn, amount.address, amount.amount, { maxHops: 2 });
         amountInTotal = amountInTotal.add(bestTrade.maximumAmountIn(slippage) as TokenAmount);
         if (bestTrade.route.path.length != 2) {
-          console.log(`Got Token For I ${i}`)
           return bestTrade.route.path[1].address;
         }
         return zeroAddress;
