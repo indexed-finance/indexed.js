@@ -77,6 +77,12 @@ export class PoolHelper {
     return timestamp - this.lastUpdate > 600;
   }
 
+  extrapolateValue(token: string): BigNumber {
+    const { usedBalance, usedDenorm } = this.getTokenByAddress(token);
+    const { totalWeight } = this.pool;
+    return usedBalance.times(totalWeight).div(usedDenorm);
+  }
+
   async getSnapshots(days: number): Promise<PoolDailySnapshot[]> {
     let url = (this.chainID == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
     return getPoolSnapshots(url, this.address, days);
