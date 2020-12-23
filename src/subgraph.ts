@@ -1,6 +1,6 @@
 import fetch from 'isomorphic-fetch';
 import * as bmath from './bmath';
-import { Pool, PoolDailySnapshot, Token } from './types';
+import { Pool, PoolDailySnapshot, StakingPool, Token } from './types';
 import { BigNumber } from './utils/bignumber';
 
 export const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed';
@@ -314,3 +314,50 @@ export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
   }
   return retArr;
 }
+
+const stakingQuery = () => `
+{
+  ndxStakingPools(first: 20) {
+    id
+    isWethPair
+    startsAt
+		isReady
+    indexPool
+    stakingToken
+    totalSupply
+    periodFinish
+    lastUpdateTime
+    totalRewards
+    claimedRewards
+    rewardRate
+  }
+}
+`;
+
+export async function getStakingPools(url: string): Promise<StakingPool[]> {
+  const { ndxStakingPools } = await executeQuery(stakingQuery(), url);
+  return ndxStakingPools.map(parseStakingPool);
+}
+
+export const parseStakingPool = (data: any): StakingPool => {
+  const periodStart =  +(data.startsAt);
+  const periodFinish = +(data.periodFinish);
+  const lastUpdateTime = +(data.lastUpdateTime);
+  const timestamp = new Date().getTime() / 1000;
+  return {
+    address: data.id,
+    indexPool: data.indexPool,
+    stakingToken: data.stakingToken,
+    isWethPair: data.isWethPair,
+    periodStart,
+    periodFinish,
+    lastUpdateTime,
+    totalRewards: bmath.bnum(data.totalRewards),
+    claimedRewards: bmath.bnum(data.claimedRewards),
+    rewardRate: bmath.bnum(data.rewardRate),
+    totalSupply: bmath.bnum(data.totalSupply),
+    isReady: data.isReady || timestamp >= periodStart,
+    hasBegun: data.isReady,
+    active: data.isReady && periodFinish > lastUpdateTime
+  };
+};
