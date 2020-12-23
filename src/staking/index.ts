@@ -51,6 +51,12 @@ export class StakingPoolHelper {
     await this.updatePromise;
   }
 
+  setUserAddress(address: string) {
+    this.userAddress = address;
+    this.updatePromise = this.updatePool();
+    this.lastUpdate = Math.floor(+new Date() / 1000);
+  }
+
   async updatePool(): Promise<void> {
     const update = await getStakingRewardsData(this.provider, this.pool, this.rewardsFactoryAddress, this.userAddress);
     const {
