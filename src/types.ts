@@ -148,3 +148,21 @@ export type UniswapPairData = {
   allowanceB?: BigNumber;
   balanceB?: BigNumber;
 }
+
+/* ===== Staking Types ===== */
+export interface StakingPool {
+  address: string;
+  active: boolean;
+  isReady: boolean;
+  hasBegun: boolean;
+  isWethPair: boolean;
+  indexPool: string;
+  stakingToken: string;
+  totalSupply: BigNumber;
+  periodStart: number;
+  periodFinish: number;
+  lastUpdateTime: number;
+  totalRewards: BigNumber;
+  claimedRewards: BigNumber;
+  rewardRate: BigNumber;
+}
