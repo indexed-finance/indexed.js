@@ -1,4 +1,8 @@
-import { Provider, Web3Provider } from "@ethersproject/providers";
+import { Provider } from "@ethersproject/providers";
+import { Pair, Token as UniswapToken, TokenAmount as UniswapTokenAmount } from "@uniswap/sdk";
+import { Contract } from "ethers";
+import { getAddress } from "ethers/lib/utils";
+
 import { getPoolSnapshots, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from "./subgraph";
 import { toProvider } from "./utils/provider";
 import {
@@ -10,11 +14,15 @@ import {
   calcPoolInGivenSingleOut,
   calcPoolOutGivenSingleIn,
   calcSingleInGivenPoolOut,
-  calcSingleOutGivenPoolIn
+  calcSingleOutGivenPoolIn,
+  calcSpotPrice
 } from "./bmath";
 import { getTokenUserData, getCurrentPoolData } from "./multicall";
 import { InitializedPool, PoolDailySnapshot, PoolToken, Token } from "./types";
-import { BigNumber, BigNumberish, formatBalance, toHex } from './utils/bignumber';
+import { BigNumber, BigNumberish, formatBalance, toBN, toHex } from './utils/bignumber';
+import { bigintToHex, getPair, getUniswapWethType } from "./utils/uniswap";
+
+const IERC20ABI = require('./abi/IERC20.json');
 
 export type TokenAmount = {
   address: string;
@@ -32,10 +40,17 @@ export type TokenAmount = {
 export class PoolHelper {
   lastUpdate: number;
   waitForUpdate: Promise<void>;
+
   public provider: Provider;
   public userAllowances: { [key: string]: BigNumber } = {};
   public userBalances: { [key: string]: BigNumber } = {};
   public userPoolBalance?: BigNumber;
+
+  lastUpdateUniswap: number;
+  waitForUniswapUpdate: Promise<void>;
+  public ethUniswapPair?: Pair;
+  public allowanceUniswapPair?: BigNumber;
+  public ethBalance?: BigNumber;
 
   constructor(
     provider: any,
@@ -44,8 +59,105 @@ export class PoolHelper {
     public userAddress?: string
   ) {
     this.provider = toProvider(provider);
-    this.lastUpdate = 0;
+    this.lastUpdate = new Date().getTime();
     this.waitForUpdate = this.update();
+    this.lastUpdateUniswap = new Date().getTime();
+    this.waitForUniswapUpdate = this.updateUniswap();
+  }
+
+  async updateUniswap() {
+    this.lastUpdateUniswap = new Date().getTime();
+    let weth = getUniswapWethType(this.chainID);
+    let pool = this.uniswapPoolTokenType;
+    const pair = await getPair(this.provider, weth, pool);
+    if (pair) {
+      this.ethUniswapPair = pair;
+      if (this.userAddress) {
+        await Promise.all([
+          this.provider.getBalance(this.userAddress).then(b => this.ethBalance = toBN(b)),
+          new Contract(this.pool.address, IERC20ABI, this.provider).allowance(
+            this.userAddress,
+            pair.liquidityToken.address
+          ).then(a => this.allowanceUniswapPair = toBN(a))
+        ]);
+      }
+    }
+  }
+
+  async getUniswapOut(
+    tokenIn: string,
+    amountIn: BigNumberish,
+    slippage: number = 2
+  ): Promise<{
+    approvalNeeded: boolean,
+    amountOut: string,
+    displayAmountOut: string,
+    displayMinimumAmountOut: string
+  }> {
+    await this.waitForUniswapUpdate;
+    const pair = this.ethUniswapPair;
+    if (!pair) return null;
+    const isPoolToken = tokenIn.toLowerCase() == this.address.toLowerCase();
+    const input = isPoolToken ? this.uniswapPoolTokenType : getUniswapWethType(this.chainID);
+    const amt = new UniswapTokenAmount(input, toBN(amountIn).toString(10));
+    const amountOut = pair.getOutputAmount(amt);
+    const bnAmount = toBN(bigintToHex(amountOut[0].raw));
+    const bnAmountMin = bnAmount.times(100 - slippage).div(100);
+    let approvalNeeded = false;
+    if (this.userAddress) {
+      if (isPoolToken && this.allowanceUniswapPair.lt(toBN(amountIn))) {
+        approvalNeeded = true;
+      }
+    }
+    return {
+      approvalNeeded,
+      amountOut: toHex(bnAmount),
+      displayAmountOut: formatBalance(bnAmount, 18, 4),
+      displayMinimumAmountOut: formatBalance(bnAmountMin, 18, 4)
+    }
+  }
+
+  async getUniswapIn(
+    tokenOut: string,
+    amountOut: BigNumberish,
+    slippage: number = 2
+  ): Promise<{
+    approvalNeeded: boolean,
+    amountIn: string,
+    displayAmountIn: string,
+    displayMaximumAmountIn: string
+  }> {
+    await this.waitForUniswapUpdate;
+    const pair = this.ethUniswapPair;
+    if (!pair) return null;
+    const isPoolToken = tokenOut.toLowerCase() == this.address.toLowerCase();
+    const output = isPoolToken ? this.uniswapPoolTokenType : getUniswapWethType(this.chainID);
+    const amt = new UniswapTokenAmount(output, toBN(amountOut).toString(10));
+    const amountIn = pair.getInputAmount(amt);
+    const bnAmount = toBN(bigintToHex(amountIn[0].raw));
+    const maxBnAmount = bnAmount.times(100 + slippage).div(100);
+    let approvalNeeded = false;
+    if (this.userAddress) {
+      if (!isPoolToken && this.allowanceUniswapPair.lt(maxBnAmount)) {
+        approvalNeeded = true;
+      }
+    }
+    return {
+      approvalNeeded,
+      amountIn: toHex(bnAmount),
+      displayAmountIn: formatBalance(bnAmount, 18, 4),
+      displayMaximumAmountIn: formatBalance(maxBnAmount, 18, 4)
+    }
+  }
+
+  get uniswapPoolTokenType(): UniswapToken {
+    return new UniswapToken(
+      this.chainID,
+      getAddress(this.address),
+      18,
+      this.symbol,
+      this.name
+    );
   }
 
   get initializer(): string {
@@ -111,6 +223,7 @@ export class PoolHelper {
   setUserAddress(userAddress: string) {
     this.userAddress = userAddress;
     this.waitForUpdate = this.update();
+    this.waitForUniswapUpdate = this.updateUniswap();
   }
 
   async updatePool(): Promise<void> {
@@ -361,7 +474,7 @@ export class PoolHelper {
     tokenIn_: string,
     tokenOut_: string,
     amountIn: BigNumberish
-  ): Promise<TokenAmount> {
+  ): Promise<TokenAmount & { spotPriceAfter: BigNumber }> {
     if (this.shouldUpdate) {
       this.waitForUpdate = this.update();
     }
@@ -377,12 +490,20 @@ export class PoolHelper {
       this.pool.swapFee
     );
     const { symbol, address, decimals } = tokenOut;
+    const spotPriceAfter = calcSpotPrice(
+      tokenIn.usedBalance.plus(bnum(amountIn)),
+      tokenIn.usedDenorm,
+      tokenOut.usedBalance.minus(amountOut),
+      tokenOut.usedDenorm,
+      this.pool.swapFee
+    );
     return {
       symbol,
       address,
       decimals,
       amount: toHex(amountOut),
-      displayAmount: formatBalance(amountOut, decimals, 4)
+      displayAmount: formatBalance(amountOut, decimals, 4),
+      spotPriceAfter
     };
   }
 
@@ -390,7 +511,7 @@ export class PoolHelper {
     tokenIn_: string,
     tokenOut_: string,
     amountOut: BigNumberish
-  ): Promise<TokenAmount> {
+  ): Promise<TokenAmount & { spotPriceAfter: BigNumber }> {
     if (this.shouldUpdate) {
       this.waitForUpdate = this.update();
     }
@@ -406,12 +527,20 @@ export class PoolHelper {
       this.pool.swapFee
     );
     const { symbol, address, decimals } = tokenIn;
+    const spotPriceAfter = calcSpotPrice(
+      tokenIn.usedBalance.plus(amountIn),
+      tokenIn.usedDenorm,
+      tokenOut.usedBalance.minus(bnum(amountOut)),
+      tokenOut.usedDenorm,
+      this.pool.swapFee
+    );
     return {
       symbol,
       address,
       decimals,
       amount: toHex(amountIn),
-      displayAmount: formatBalance(amountIn, decimals, 4)
+      displayAmount: formatBalance(amountIn, decimals, 4),
+      spotPriceAfter
     };
   }
 }
