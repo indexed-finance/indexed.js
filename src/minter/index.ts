@@ -1,11 +1,12 @@
 import { Fetcher, Trade, TokenAmount, Token, Pair, BigintIsh, BestTradeOptions, Fraction, JSBI, Route } from '@uniswap/sdk';
 import { Provider } from '@ethersproject/providers';
 import { getAddress } from 'ethers/lib/utils';
-import { Contract } from 'ethers';
 import { PoolHelper, TokenAmount as IndexedJSTokenAmount  } from '../pool-helper';
 import { toBN, formatBalance, toHex, BigNumber } from '../utils/bignumber';
 import { toProvider } from '../utils/provider';
 import { PoolToken } from '../types';
+import { getWethAddress, zeroAddress } from '../constants';
+import { TokenInput, toTokens, bigintToHex, getPair } from '../utils/uniswap';
 
 const ONE = JSBI.BigInt(1);
 
@@ -16,14 +17,8 @@ import {
   MintParams_ExactTokensForTokensAndMint,
   MintParams_EthForTokensAndMintExact, MintParams_ExactETHForTokensAndMint
 } from './types';
-import { getTokenUserData } from '../multicall';
 
-export type TokenInput = {
-  address: string;
-  decimals: number;
-  name: string;
-  symbol: string;
-};
+import { getTokenUserData } from '../multicall';
 
 export type MintOptions = BestTradeOptions & {
   slippage?: number,
@@ -31,36 +26,6 @@ export type MintOptions = BestTradeOptions & {
 };
 
 export type IndexedJSTokenAmountWithCost = IndexedJSTokenAmount & { cost: number };
-
-function toTokens(chainID: number, tokenInputs: TokenInput[]): Token[] {
-  const tokens = [];
-  for (let token of tokenInputs) {
-    tokens.push(
-      new Token(chainID, getAddress(token.address), token.decimals, token.symbol, token.name)
-    );
-  }
-  return tokens;
-}
-
-const bigintToHex = (amount: BigintIsh) => {
-  return '0x' + amount.toString(16);
-}
-
-const getWethAddress = (chainID: number) => getAddress(
-  chainID == 1
-    ? '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
-    : '0xdD94a710009CD1d859fd48D5eb29A1a49dD6135f'
-);
-
-const zeroAddress = `0x${'00'.repeat(20)}`;
-
-function getPair(provider: Provider, tokenA: Token, tokenB: Token): Promise<Pair | void> {
-  if (tokenA.sortsBefore(tokenB)) {
-    return Fetcher.fetchPairData(tokenA, tokenB, provider as any).catch(() => {})
-  } else {
-    return Fetcher.fetchPairData(tokenB, tokenA, provider as any).catch(() => {})
-  }
-}
 
 export default class Minter {
   public waitForUpdate: Promise<void>;
