@@ -330,6 +330,7 @@ const stakingQuery = () => `
     totalRewards
     claimedRewards
     rewardRate
+    rewardPerTokenStored
   }
 }
 `;
@@ -355,6 +356,7 @@ export const parseStakingPool = (data: any): StakingPool => {
     totalRewards: bmath.bnum(data.totalRewards),
     claimedRewards: bmath.bnum(data.claimedRewards),
     rewardRate: bmath.bnum(data.rewardRate),
+    rewardPerToken: bmath.bnum(data.rewardPerTokenStored),
     totalSupply: bmath.bnum(data.totalSupply),
     isReady: data.isReady || timestamp >= periodStart,
     hasBegun: data.isReady,
