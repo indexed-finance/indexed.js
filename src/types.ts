@@ -165,4 +165,5 @@ export interface StakingPool {
   totalRewards: BigNumber;
   claimedRewards: BigNumber;
   rewardRate: BigNumber;
+  rewardPerToken: BigNumber;
 }
