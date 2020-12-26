@@ -21,6 +21,7 @@ export interface StakingPoolUpdate {
   lastUpdateTime: number;
   claimedRewards: BigNumber;
   rewardRate: BigNumber;
+  rewardPerToken: BigNumber;
 
   userBalanceRewards?: BigNumber;
   userEarnedRewards?: BigNumber;
@@ -43,7 +44,8 @@ export async function getStakingRewardsData(
   calls.push({ interface: iface, target: pool.address, function: 'lastUpdateTime' });
   calls.push({ interface: iface, target: pool.address, function: 'totalSupply' });
   calls.push({ interface: erc20ABI, target: pool.stakingToken, function: 'balanceOf', args: [pool.address] });
-  calls.push({ interface: factoryABI, target: factoryAddress, function: 'stakingRewardsGenesis' })
+  calls.push({ interface: factoryABI, target: factoryAddress, function: 'stakingRewardsGenesis' });
+  calls.push({ interface: iface, target: pool.address, function: 'rewardPerToken' });
   if (userAddress) {
     calls.push({ interface: iface, target: pool.address, function: 'balanceOf', args: [userAddress] });
     calls.push({ interface: iface, target: pool.address, function: 'earned', args: [userAddress] });
@@ -64,6 +66,7 @@ export async function getStakingRewardsData(
   const hasBegun = periodFinish > 0;
   const claimedRewards = hasBegun ? pool.totalRewards.minus(poolRewardsBalance) : bnum(0);
   const periodStart = hasBegun ? periodFinish - rewardsDuration : 0;
+  const rewardPerToken = bnum(response[7]);
   const update: StakingPoolUpdate = {
     active,
     isReady,
@@ -74,13 +77,14 @@ export async function getStakingRewardsData(
     lastUpdateTime,
     totalSupply,
     claimedRewards,
-    rewardRate
+    rewardRate,
+    rewardPerToken
   };
   if (userAddress) {
-    update.userBalanceRewards = bnum(response[7]);
-    update.userEarnedRewards = bnum(response[8]);
-    update.userBalanceStakingToken = bnum(response[9]);
-    update.userAllowanceStakingToken = bnum(response[10]);
+    update.userBalanceRewards = bnum(response[8]);
+    update.userEarnedRewards = bnum(response[9]);
+    update.userBalanceStakingToken = bnum(response[10]);
+    update.userAllowanceStakingToken = bnum(response[11]);
   }
   return update;
 }

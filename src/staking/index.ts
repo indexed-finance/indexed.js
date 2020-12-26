@@ -1,8 +1,8 @@
 import { Provider } from "@ethersproject/providers";
 import { toProvider } from "../utils/provider";
-import { bnum } from '../bmath';
+import { BONE } from '../bmath';
 import { StakingPool } from '../types';
-import { BigNumber } from '../utils/bignumber';
+import { BigNumber, BigNumberish, toBN } from '../utils/bignumber';
 import { getStakingRewardsData } from "./multicall";
 
 export class StakingPoolHelper {
@@ -70,6 +70,7 @@ export class StakingPoolHelper {
       lastUpdateTime,
       claimedRewards,
       rewardRate,
+      rewardPerToken,
       userBalanceRewards,
       userEarnedRewards,
       userBalanceStakingToken,
@@ -90,11 +91,16 @@ export class StakingPoolHelper {
       lastUpdateTime,
       claimedRewards,
       rewardRate,
+      rewardPerToken
     });
   }
 
-  async calculateRewardsForDuration(duration: number): Promise<BigNumber> {
-    await this.waitForUpdate();
+  calculateTotalRewardsForDuration(duration: number): BigNumber {
     return this.pool.rewardRate.times(duration);
+  }
+
+  calculateRewardsForDuration(duration: number, stakedAmount: BigNumberish = BONE): BigNumber {
+    const staked = toBN(stakedAmount);
+    return this.pool.rewardRate.times(duration).times(staked).div(this.pool.totalSupply);
   }
 }
