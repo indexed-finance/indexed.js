@@ -164,8 +164,7 @@ export async function getUniswapData(
   }
   let chunks = [];
   let incr = userAddress ? 4 : 1;
-  for (; i < response.length - 1; i += incr) {
-
+  for (; i <= response.length - incr; i += incr) {
     chunks.push(response.slice(i, i + incr));
   }
   const pairs: UniswapPairData[] = [];
@@ -179,7 +178,7 @@ export async function getUniswapData(
     let allowanceB: BigNumber | undefined;
     let reservesA: BigNumber;
     let reservesB: BigNumber;
-    let rI = userAddress ? 3 : 1;
+    let rI = userAddress ? 3 : 0;
 
     if (userAddress) {
       balanceB = bmath.bnum(chunk[0]);
