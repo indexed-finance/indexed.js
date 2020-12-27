@@ -92,7 +92,7 @@ export class PoolHelper {
     approvalNeeded: boolean,
     amountOut: string,
     displayAmountOut: string,
-    displayMinimumAmountOut: string
+    price: number
   }> {
     await this.waitForUniswapUpdate;
     const pair = this.ethUniswapPair;
@@ -109,11 +109,14 @@ export class PoolHelper {
         approvalNeeded = true;
       }
     }
+    const displayAmountOut = formatBalance(bnAmountMin, 18, 4);
+    const displayAmountIn = formatBalance(toBN(amountIn), 18, 4);
+    const price = parseFloat(displayAmountOut) / parseFloat(displayAmountIn);
     return {
       approvalNeeded,
-      amountOut: toHex(bnAmount),
-      displayAmountOut: formatBalance(bnAmount, 18, 4),
-      displayMinimumAmountOut: formatBalance(bnAmountMin, 18, 4)
+      amountOut: toHex(bnAmountMin),
+      displayAmountOut,
+      price
     }
   }
 
@@ -125,7 +128,7 @@ export class PoolHelper {
     approvalNeeded: boolean,
     amountIn: string,
     displayAmountIn: string,
-    displayMaximumAmountIn: string
+    price: number
   }> {
     await this.waitForUniswapUpdate;
     const pair = this.ethUniswapPair;
@@ -142,11 +145,14 @@ export class PoolHelper {
         approvalNeeded = true;
       }
     }
+    const displayAmountOut = formatBalance(toBN(amountOut), 18, 4);
+    const displayAmountIn = formatBalance(maxBnAmount, 18, 4);
+    const price = parseFloat(displayAmountOut) / parseFloat(displayAmountIn);
     return {
       approvalNeeded,
-      amountIn: toHex(bnAmount),
-      displayAmountIn: formatBalance(bnAmount, 18, 4),
-      displayMaximumAmountIn: formatBalance(maxBnAmount, 18, 4)
+      amountIn: toHex(maxBnAmount),
+      displayAmountIn,
+      price
     }
   }
 
@@ -193,6 +199,16 @@ export class PoolHelper {
     const { usedBalance, usedDenorm } = this.getTokenByAddress(token);
     const { totalWeight } = this.pool;
     return usedBalance.times(totalWeight).div(usedDenorm);
+  }
+
+  get totalValueLocked(): number {
+    let tvl = 0;
+    for (let token of this.tokens) {
+      const balance = parseFloat(formatBalance(token.balance, 18, 10));
+      const value = balance * token.priceUSD;
+      tvl += value;
+    }
+    return tvl;
   }
 
   async getSnapshots(days: number): Promise<PoolDailySnapshot[]> {
