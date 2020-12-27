@@ -21,6 +21,7 @@ import { getTokenUserData, getCurrentPoolData } from "./multicall";
 import { InitializedPool, PoolDailySnapshot, PoolToken, Token } from "./types";
 import { BigNumber, BigNumberish, formatBalance, toBN, toHex } from './utils/bignumber';
 import { bigintToHex, getPair, getUniswapWethType } from "./utils/uniswap";
+import { UNISWAP_ROUTER } from "./constants";
 
 const IERC20ABI = require('./abi/IERC20.json');
 
@@ -49,7 +50,7 @@ export class PoolHelper {
   lastUpdateUniswap: number;
   waitForUniswapUpdate: Promise<void>;
   public ethUniswapPair?: Pair;
-  public allowanceUniswapPair?: BigNumber;
+  public allowanceUniswapRouter?: BigNumber;
   public ethBalance?: BigNumber;
 
   constructor(
@@ -77,8 +78,8 @@ export class PoolHelper {
           this.provider.getBalance(this.userAddress).then(b => this.ethBalance = toBN(b)),
           new Contract(this.pool.address, IERC20ABI, this.provider).allowance(
             this.userAddress,
-            pair.liquidityToken.address
-          ).then(a => this.allowanceUniswapPair = toBN(a))
+            UNISWAP_ROUTER
+          ).then(a => this.allowanceUniswapRouter = toBN(a))
         ]);
       }
     }
@@ -105,7 +106,7 @@ export class PoolHelper {
     const bnAmountMin = bnAmount.times(100 - slippage).div(100);
     let approvalNeeded = false;
     if (this.userAddress) {
-      if (isPoolToken && this.allowanceUniswapPair.lt(toBN(amountIn))) {
+      if (isPoolToken && this.allowanceUniswapRouter.lt(toBN(amountIn))) {
         approvalNeeded = true;
       }
     }
@@ -141,7 +142,7 @@ export class PoolHelper {
     const maxBnAmount = bnAmount.times(100 + slippage).div(100);
     let approvalNeeded = false;
     if (this.userAddress) {
-      if (!isPoolToken && this.allowanceUniswapPair.lt(maxBnAmount)) {
+      if (!isPoolToken && this.allowanceUniswapRouter.lt(maxBnAmount)) {
         approvalNeeded = true;
       }
     }
