@@ -15,14 +15,16 @@ import {
   MintParams_EthForAllTokensAndMintExact,
   MintParams_TokensForTokensAndMintExact,
   MintParams_ExactTokensForTokensAndMint,
-  MintParams_EthForTokensAndMintExact, MintParams_ExactETHForTokensAndMint
+  MintParams_EthForTokensAndMintExact,
+  MintParams_ExactETHForTokensAndMint
 } from './types';
 
 import { getTokenUserData } from '../multicall';
+import { getGasPrice } from '../utils/gas-price';
 
 export type MintOptions = BestTradeOptions & {
   slippage?: number,
-  gasPrice?: number
+  compareGasPrice?: boolean
 };
 
 export type IndexedJSTokenAmountWithCost = IndexedJSTokenAmount & { cost: number };
@@ -33,6 +35,8 @@ export default class Minter {
   public pairs: Pair[] = [];
   public userBalances: { [key: string]: BigNumber } = {};
   public userAllowances: { [key: string]: BigNumber } = {};
+  public lastGasPrice?: number;
+  public lastGasPriceUpdate?: number;
 
   protected constructor(
     public provider: Provider,
@@ -57,7 +61,7 @@ export default class Minter {
   }
 
   get shouldUpdate(): boolean {
-    return this.timestamp - this.lastUpdateTime > 120; 
+    return this.timestamp - this.lastUpdateTime > 60; 
   }
   
   get wethAddress(): string {
@@ -66,6 +70,17 @@ export default class Minter {
 
   get minterAddress(): string {
     return this.chainID == 1 ? '0xfb6Ac20d38A1F0C4f90747CA0745E140bc17E4C3' : '0x5A8a169a86A63741A769de61E258848746A84094';
+  }
+
+  async getGasPrice(): Promise<number> {
+    if (this.timestamp - (this.lastGasPriceUpdate || 0) >= 60) {
+      this.lastGasPriceUpdate = this.timestamp;
+      let curProm = this.waitForUpdate;
+      let newProm = getGasPrice(this.chainID).then((price) => this.lastGasPrice = price);
+      this.waitForUpdate = Promise.all([ curProm, newProm ]).then(() => {})
+    }
+    await this.waitForUpdate;
+    return this.lastGasPrice
   }
 
   async canMintSingle_PoolAmountOut(poolToken: string, poolAmountOut: BigNumber): Promise<{
@@ -364,6 +379,7 @@ export default class Minter {
       return null;
     }
     const bestTrade = await this.bestTradeExactOut(tokenIn, cheapestInput.address, cheapestInput.amount, options);
+
     const helper = this.helper;
 
     const poolOutput = this.getIndexedTokenAmount(
@@ -506,17 +522,22 @@ export default class Minter {
   ): Promise<MintParams_EthForAllTokensAndMintExact | MintParams_EthForTokensAndMintExact> {
     const all = await this.getParams_EthForAllTokens(poolAmountOut, options);
     const single = await this.getParams_EthForExactPoolTokens(poolAmountOut, options);
-
-    if (
-      !single ||
-      toBN(single.maxEthInput.amount).gt(
-        toBN(all.params.maxEthInput.amount)
-      )
-    ) {
-      return all.params;
-    } else {
-      return single;
+    if (single) {
+      let ethSingle = toBN(single.maxEthInput.amount);
+      let ethAll = toBN(all.params.maxEthInput.amount);
+      if (ethSingle.lt(ethAll)) {
+        return single;
+      }
+      if (options?.compareGasPrice) {
+        const gasPrice = await this.getGasPrice();
+        const roughSingleGas = 300000;
+        const roughAllGas = this.poolTokens.length * 220000;
+        const roughCostAll = (roughAllGas - roughSingleGas) * gasPrice;
+        ethAll = ethAll.plus(roughCostAll);
+        if (ethSingle.lt(ethAll)) return single;
+      }
     }
+    return all.params;
   }
 
   public async getBestParams_TokensForPoolExact(
@@ -526,16 +547,24 @@ export default class Minter {
   ): Promise<MintParams_TokensForAllTokensAndMintExact | MintParams_TokensForTokensAndMintExact> {
     const all = await this.getParams_TokenForAllTokens(tokenIn, poolAmountOut, options && { slippage: options.slippage });
     const single = await this.getParams_TokensForExactPoolTokens(tokenIn, poolAmountOut, options);
-    if (
-      !single ||
-      toBN(single.maxTokenInput.amount).gt(
-        toBN(all.maxTokenInput.amount)
-      )
-    ) {
-      return all;
-    } else {
-      return single;
+    if (single) {
+      let tokenSingle = toBN(single.maxTokenInput.amount);
+      let tokenAll = toBN(all.maxTokenInput.amount);
+      if (tokenSingle.lt(tokenAll)) {
+        return single;
+      }
+      if (options?.compareGasPrice) {
+        const gasPrice = await this.getGasPrice();
+        const roughSingleGas = 300000;
+        const roughAllGas = this.poolTokens.length * 220000;
+        const roughCostAll = (roughAllGas - roughSingleGas) * gasPrice;
+        const tokenValue = await this.bestTradeExactIn(this.wethAddress, roughCostAll.toString(), tokenIn);
+        const bnValue = toBN(bigintToHex(tokenValue.outputAmount.raw));
+        tokenAll = tokenAll.plus(bnValue);
+        if (tokenSingle.lt(tokenAll)) return single;
+      }
     }
+    return all;
   }
 
   public async getBestParams_ExactTokensForPool(
