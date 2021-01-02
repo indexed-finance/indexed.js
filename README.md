@@ -7,7 +7,7 @@ TypeScript libraries for using the Indexed core contracts.
 **Get helper classes for all pools**
 
 ```js
-const { getAllHelpers, toWei, fromWei } = require('@indexed-finance/indexed-sdk');
+const { getAllHelpers, toWei, fromWei } = require('@indexed-finance/indexed.js');
 
 const helpers = await getAllHelpers(web3);
 
