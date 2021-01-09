@@ -3,7 +3,7 @@ import { Pair, Token as UniswapToken, TokenAmount as UniswapTokenAmount } from "
 import { Contract } from "ethers";
 import { getAddress } from "ethers/lib/utils";
 
-import { getPoolSnapshots, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from "./subgraph";
+import { getPoolSnapshots, getPoolUpdate, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from "./subgraph";
 import { toProvider } from "./utils/provider";
 import {
   bnum,
@@ -277,19 +277,24 @@ export class PoolHelper {
     });
   }
 
-  async updateSnapshots(): Promise<void> {
-    const [snapshot] = await this.getSnapshots(1);
+  async updateSnapshotAndPrices(): Promise<void> {
+    let url = (this.chainID == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
+    const { snapshot, tokenPrices } = await getPoolUpdate(url, this.address);
     const lastSnapshot = this.pool.snapshots[this.pool.snapshots.length - 1];
     if (lastSnapshot.date == snapshot.date) {
-      this.pool.snapshots[this.pool.snapshots.length - 1] = lastSnapshot;
+      this.pool.snapshots[this.pool.snapshots.length - 1] = snapshot;
     } else {
       this.pool.snapshots.push(lastSnapshot);
     }
+    Object.keys(tokenPrices).map((address) => {
+      const token = this.getTokenByAddress(address);
+      token.priceUSD = tokenPrices[address];
+    });
   }
 
   async update(): Promise<void> {
     this.lastUpdate = Math.floor(+new Date() / 1000);
-    await Promise.all([ this.updatePool(), this.updateUserData(), this.updateSnapshots() ]);
+    await Promise.all([ this.updatePool(), this.updateUserData(), this.updateSnapshotAndPrices() ]);
   }
 
   getTokenBySymbol(symbol: string): PoolToken {
