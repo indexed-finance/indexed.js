@@ -214,7 +214,6 @@ export async function getTokenPrice(url: string, address: string): Promise<BigNu
   return bmath.bnum(tokenDayData.priceUSD);
 }
 
-
 const poolSnapshotsQuery = (poolAddress: string, days: number) => `
 {
   dailyPoolSnapshots(orderBy: date, orderDirection: desc, first: ${days}, where: { pool: "${poolAddress}" }) {
@@ -310,8 +309,8 @@ export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
         totalVolumeUSD: +dailyVolumeUSD
       });
     }
-
   }
+  retArr.sort((a, b) => a.date - b.date);
   return retArr;
 }
 
