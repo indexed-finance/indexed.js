@@ -40,7 +40,7 @@ export class StakingPoolHelper {
 
   get shouldUpdate(): boolean {
     const timestamp = Math.floor(+new Date() / 1000);
-    return timestamp - this.lastUpdate > 300;
+    return timestamp - this.lastUpdate > 120;
   }
 
   async waitForUpdate(): Promise<void> {

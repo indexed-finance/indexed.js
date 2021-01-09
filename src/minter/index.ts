@@ -61,7 +61,7 @@ export default class Minter {
   }
 
   get shouldUpdate(): boolean {
-    return this.timestamp - this.lastUpdateTime > 60; 
+    return this.timestamp - this.lastUpdateTime > 120; 
   }
   
   get wethAddress(): string {
