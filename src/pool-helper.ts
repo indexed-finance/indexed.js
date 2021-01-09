@@ -193,7 +193,7 @@ export class PoolHelper {
 
   get shouldUpdate(): boolean {
     const timestamp = Math.floor(+new Date() / 1000);
-    return (timestamp - this.lastUpdate) > 60;
+    return (timestamp - this.lastUpdate) > 120;
   }
 
   extrapolateValue(token: string): BigNumber {
@@ -277,9 +277,19 @@ export class PoolHelper {
     });
   }
 
+  async updateSnapshots(): Promise<void> {
+    const [snapshot] = await this.getSnapshots(1);
+    const lastSnapshot = this.pool.snapshots[this.pool.snapshots.length - 1];
+    if (lastSnapshot.date == snapshot.date) {
+      this.pool.snapshots[this.pool.snapshots.length - 1] = lastSnapshot;
+    } else {
+      this.pool.snapshots.push(lastSnapshot);
+    }
+  }
+
   async update(): Promise<void> {
     this.lastUpdate = Math.floor(+new Date() / 1000);
-    await Promise.all([ this.updatePool(), this.updateUserData() ]);
+    await Promise.all([ this.updatePool(), this.updateUserData(), this.updateSnapshots() ]);
   }
 
   getTokenBySymbol(symbol: string): PoolToken {
