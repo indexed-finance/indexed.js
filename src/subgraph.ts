@@ -362,3 +362,45 @@ export const parseStakingPool = (data: any): StakingPool => {
     active: data.isReady && periodFinish > lastUpdateTime
   };
 };
+
+const poolUpdateQuery = (address: string) => `
+{
+  indexPool(id: "${address}") {
+    dailySnapshots(orderBy: date, orderDirection: desc, first: 1) {
+      id
+      date
+      value
+      totalSupply
+      feesTotalUSD
+      totalValueLockedUSD
+      totalSwapVolumeUSD
+      totalVolumeUSD
+    }
+    tokens {
+      token {
+        id
+        priceUSD
+      }
+    }
+  }
+}
+`;
+
+type PoolUpdate = {
+  snapshot: PoolDailySnapshot;
+  tokenPrices: { [address: string]: number }
+}
+
+export async function getPoolUpdate(url: string, address: string): Promise<PoolUpdate> {
+  const query = poolUpdateQuery(address.toLowerCase());
+  const { indexPool: { dailySnapshots, tokens } } = await executeQuery(query, url);
+  const [snapshot] = parsePoolSnapshots(dailySnapshots);
+  const tokenPrices = tokens.reduce(
+    (obj, t) => ({ ...obj, [t.token.id]: +(t.token.priceUSD) }),
+    {}
+  );
+  return {
+    snapshot,
+    tokenPrices
+  };
+}
