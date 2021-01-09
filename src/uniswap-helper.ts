@@ -51,7 +51,7 @@ export class UniswapHelper {
 
   get shouldUpdate(): boolean {
     const timestamp = Math.floor(+new Date() / 1000);
-    return timestamp - this.lastUpdate > 60;
+    return timestamp - this.lastUpdate > 120;
   }
 
   async update(): Promise<void> {
