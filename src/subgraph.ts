@@ -4,7 +4,7 @@ import { Pool, PoolDailySnapshot, StakingPool, Token } from './types';
 import { BigNumber } from './utils/bignumber';
 
 export const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed';
-export const INDEXED_RINKEBY_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-v1';
+export const INDEXED_RINKEBY_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-rinkeby';
 export const UNISWAP_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2';
 export const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/samgos/uniswap-v2-rinkeby';
 
@@ -19,8 +19,8 @@ symbol
 isPublic
 totalSupply
 totalWeight
-maxTotalSupply
 swapFee
+exitFee
 feesTotalUSD
 totalValueLockedUSD
 totalVolumeUSD
@@ -53,6 +53,7 @@ tokens {
   }
   ready
   balance
+  minimumBalance
   denorm
   desiredDenorm
 }
@@ -125,17 +126,17 @@ export const parsePoolData = (
   let poolData: Pool[] = [];
   pools.forEach((p) => {
     let obj: any = {
-      category: +(p.category.id),
+      category: p.category.id,
       address: p.id,
       name: p.name,
       symbol: p.symbol,
       size: p.size,
       isPublic: p.isPublic,
       totalSupply: bmath.bnum(p.totalSupply),
-      maxTotalSupply: bmath.bnum(p.maxTotalSupply),
       totalVolumeUSD: bmath.bnum(p.totalVolumeUSD),
       totalWeight: bmath.bnum(p.totalWeight),
       swapFee: p.isPublic ? bmath.scale(bmath.bnum(p.swapFee), 18) : bmath.bnum(0),
+      exitFee: bmath.scale(bmath.bnum(p.exitFee), 18)
     };
     if (p.isPublic) {
       let tokenIndices = p.tokensList.reduce((tks, address, i) => ({
@@ -172,11 +173,10 @@ export const parsePoolData = (
           token.usedWeight = bmath.bnum(bmath.MIN_WEIGHT).div(obj.totalWeight);
         }
         if (t.minimumBalance) {
-          token.minimumBalance = bmath.bnum(token.minimumBalance);
+          token.minimumBalance = bmath.bnum(token.usedBalance);
         }
         let index = tokenIndices[token.address];
         obj.tokens[index] = token;
-        //.push(token);
       });
     } else {
       obj.initializer = {
