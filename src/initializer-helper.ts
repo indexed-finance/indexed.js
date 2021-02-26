@@ -45,7 +45,7 @@ export class InitializerHelper {
     this.waitForUpdate = this.update();
   }
 
-  get category(): number {
+  get category(): string {
     return this.pool.category;
   }
 
