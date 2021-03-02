@@ -4,6 +4,8 @@ import { BONE } from '../bmath';
 import { StakingPool } from '../types';
 import { BigNumber, BigNumberish, toBN } from '../utils/bignumber';
 import { getStakingRewardsData } from "./multicall";
+import { DEGEN, SIGMA_REWARDS_FACTORY } from '../constants';
+import { DEGEN_STAKING_SHIM } from "subgraph";
 
 export class StakingPoolHelper {
   protected lastUpdate: number = 0;
@@ -33,6 +35,9 @@ export class StakingPoolHelper {
   }
 
   get rewardsFactoryAddress(): string {
+    if (this.pool.indexPool.toLowerCase() == DEGEN.toLowerCase()) {
+      return SIGMA_REWARDS_FACTORY;
+    }
     return this.chainID == 1
       ? '0x48887E27e3E42e769F34e1e43E857235035d333a'
       : '0x8d12A344580Bc0bC4E684248067F5d9d3908C864';
