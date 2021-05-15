@@ -1,10 +1,11 @@
+import { DEGEN } from './constants';
 import fetch from 'isomorphic-fetch';
 import * as bmath from './bmath';
 import { Pool, PoolDailySnapshot, StakingPool, Token } from './types';
-import { BigNumber } from './utils/bignumber';
+import { BigNumber, toTokenAmount } from './utils/bignumber';
 
 export const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed';
-export const INDEXED_RINKEBY_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-v1';
+export const INDEXED_RINKEBY_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-rinkeby';
 export const UNISWAP_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2';
 export const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/samgos/uniswap-v2-rinkeby';
 
@@ -19,8 +20,8 @@ symbol
 isPublic
 totalSupply
 totalWeight
-maxTotalSupply
 swapFee
+exitFee
 feesTotalUSD
 totalValueLockedUSD
 totalVolumeUSD
@@ -53,6 +54,7 @@ tokens {
   }
   ready
   balance
+  minimumBalance
   denorm
   desiredDenorm
 }
@@ -125,17 +127,17 @@ export const parsePoolData = (
   let poolData: Pool[] = [];
   pools.forEach((p) => {
     let obj: any = {
-      category: +(p.category.id),
+      category: p.category.id,
       address: p.id,
       name: p.name,
       symbol: p.symbol,
       size: p.size,
       isPublic: p.isPublic,
       totalSupply: bmath.bnum(p.totalSupply),
-      maxTotalSupply: bmath.bnum(p.maxTotalSupply),
       totalVolumeUSD: bmath.bnum(p.totalVolumeUSD),
       totalWeight: bmath.bnum(p.totalWeight),
       swapFee: p.isPublic ? bmath.scale(bmath.bnum(p.swapFee), 18) : bmath.bnum(0),
+      exitFee: bmath.scale(bmath.bnum(p.exitFee), 18)
     };
     if (p.isPublic) {
       let tokenIndices = p.tokensList.reduce((tks, address, i) => ({
@@ -172,11 +174,10 @@ export const parsePoolData = (
           token.usedWeight = bmath.bnum(bmath.MIN_WEIGHT).div(obj.totalWeight);
         }
         if (t.minimumBalance) {
-          token.minimumBalance = bmath.bnum(token.minimumBalance);
+          token.minimumBalance = bmath.bnum(token.usedBalance);
         }
         let index = tokenIndices[token.address];
         obj.tokens[index] = token;
-        //.push(token);
       });
     } else {
       obj.initializer = {
@@ -336,7 +337,11 @@ const stakingQuery = () => `
 
 export async function getStakingPools(url: string): Promise<StakingPool[]> {
   const { ndxStakingPools } = await executeQuery(stakingQuery(), url);
-  return ndxStakingPools.map(parseStakingPool);
+  const pools: StakingPool[] = ndxStakingPools.map(parseStakingPool);
+  if (!pools.some(p => p.indexPool.toLowerCase() == DEGEN.toLowerCase())) {
+    pools.push(DEGEN_STAKING_SHIM);
+  }
+  return pools;
 }
 
 export const parseStakingPool = (data: any): StakingPool => {
@@ -403,4 +408,22 @@ export async function getPoolUpdate(url: string, address: string): Promise<PoolU
     snapshot,
     tokenPrices
   };
+}
+
+export const DEGEN_STAKING_SHIM: StakingPool = {
+  address: '0x649A94e2b3010338508CF50865BaafB1FA07A32c',
+  active: true,
+  isReady: true,
+  hasBegun: false,
+  isWethPair: true,
+  indexPool: DEGEN.toLowerCase(),
+  stakingToken: '0xfaad1072e259b5ed342d3f16277477b46d379abc',
+  totalSupply: bmath.bnum(0),
+  periodStart: 0,
+  periodFinish: 0,
+  lastUpdateTime: 0,
+  totalRewards: toTokenAmount(50000, 18),
+  claimedRewards: bmath.bnum(0),
+  rewardRate: toTokenAmount(50000, 18).div(2592000),
+  rewardPerToken: bmath.bnum(0)
 }

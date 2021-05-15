@@ -10,3 +10,6 @@ export const getWethAddress = (chainID: number) => getAddress(
     : '0xdD94a710009CD1d859fd48D5eb29A1a49dD6135f'
 );
 export const zeroAddress = `0x${'00'.repeat(20)}`;
+
+export const SIGMA_REWARDS_FACTORY = '0x4246863cf318f930a955f4bab2a9277c21e3b0bb';
+export const DEGEN = '0x126c121f99e1e211df2e5f8de2d96fa36647c855';

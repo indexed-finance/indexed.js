@@ -23,7 +23,7 @@ export type Swap = {
 
 /* ===== Base Types ===== */
 type BasePool = {
-  category: number;
+  category: string;
   address: string;
   name: string;
   symbol: string;
@@ -31,8 +31,8 @@ type BasePool = {
   isPublic: boolean;
   totalWeight: BigNumber;
   totalSupply: BigNumber;
-  maxTotalSupply: BigNumber;
   swapFee: BigNumber;
+  exitFee: BigNumber;
 };
 
 export type Token = {
@@ -48,7 +48,6 @@ export type Token = {
 export type InitializedPoolUpdate = {
   totalWeight: BigNumber;
   totalSupply: BigNumber;
-  maxTotalSupply: BigNumber;
   swapFee: BigNumber;
   tokens: PoolTokenUpdate[];
   userBalance?: BigNumber;

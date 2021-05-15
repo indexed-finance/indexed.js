@@ -1,7 +1,6 @@
 import { BigNumber, BigNumberish } from './utils/bignumber';
 
 export const BONE = new BigNumber(10).pow(18);
-export const EXIT_FEE = new BigNumber(0);
 export const TWOBONE = BONE.times(new BigNumber(2));
 const BPOW_PRECISION = BONE.idiv(new BigNumber(10).pow(10));
 
@@ -110,7 +109,8 @@ export function calcPoolInGivenSingleOut(
   poolSupply: BigNumber,
   totalWeight: BigNumber,
   tokenAmountOut: BigNumber,
-  swapFee: BigNumber
+  swapFee: BigNumber,
+  EXIT_FEE: BigNumber
 ): BigNumber {
   const normalizedWeight = bdiv(tokenWeightOut, totalWeight);
   const zoo = BONE.minus(normalizedWeight);
@@ -134,7 +134,8 @@ export function calcAllOutGivenPoolIn(
   tokenBalances: BigNumber[],
   tokenDenorms: BigNumber[],
   poolSupply: BigNumber,
-  poolAmountIn: BigNumber
+  poolAmountIn: BigNumber,
+  EXIT_FEE: BigNumber
 ) {
   const exitFee = bmul(poolAmountIn, EXIT_FEE);
   const pAiAfterExitFee = poolAmountIn.minus(exitFee);
@@ -180,7 +181,8 @@ export function calcSingleOutGivenPoolIn(
   poolSupply: BigNumber,
   totalWeight: BigNumber,
   poolAmountIn: BigNumber,
-  swapFee: BigNumber
+  swapFee: BigNumber,
+  EXIT_FEE: BigNumber
 ): BigNumber {
   const normalizedWeight = bdiv(tokenWeightOut, totalWeight);
   const poolAmountInAfterExitFee = bmul(poolAmountIn, BONE.minus(EXIT_FEE));
@@ -199,11 +201,31 @@ export function calcSingleOutGivenPoolIn(
   return tokenAmountOut;
 }
 
+export function calcInGivenPrice(
+  tokenBalanceIn: BigNumber,
+  tokenWeightIn: BigNumber,
+  tokenBalanceOut: BigNumber,
+  tokenWeightOut: BigNumber,
+  externalPrice: BigNumber,
+  swapFee: BigNumber
+) {
+  const marketPrice = calcSpotPrice(
+    tokenBalanceIn, tokenWeightIn, tokenBalanceOut, tokenWeightOut, swapFee
+  );
+  const priceRatio = bdiv(externalPrice, marketPrice).div(BONE);
+  const weightSum = tokenWeightOut.plus(tokenWeightIn);
+  const weightExp = tokenWeightOut.div(weightSum);
+  const foo = priceRatio.toNumber() ** weightExp.toNumber();
+  const bar = foo - 1;
+  const tokenAmountIn = tokenBalanceIn.times(bar);
+  return tokenAmountIn;
+}
+
 export function bmul(a: BigNumber, b: BigNumber): BigNumber {
   let c0 = a.times(b);
   let c1 = c0.plus(BONE.div(new BigNumber(2)));
   let c2 = c1.idiv(BONE);
-  return c2;
+  return c2.integerValue();
 }
 
 export function bdiv(a: BigNumber, b: BigNumber): BigNumber {

@@ -28,7 +28,6 @@ export async function getCurrentPoolData(
   const calls: CallInput[] = [];
   calls.push({ target: poolAddress, function: 'getTotalDenormalizedWeight' });
   calls.push({ target: poolAddress, function: 'totalSupply' });
-  calls.push({ target: poolAddress, function: 'getMaxPoolTokens' });
   calls.push({ target: poolAddress, function: 'getSwapFee' });
   if (userAddress) {
     calls.push({ target: poolAddress, function: 'balanceOf', args: [userAddress] });
@@ -42,13 +41,11 @@ export async function getCurrentPoolData(
   const response = await multi.multiCall(iface, calls);
   const totalDenorm = bmath.bnum(response[0]);
   const totalSupply = bmath.bnum(response[1]);
-  const maxTotalSupply = bmath.bnum(response[2]);
-  const swapFee = bmath.bnum(response[3]);
+  const swapFee = bmath.bnum(response[2]);
   let userBalance: BigNumber | undefined;
-  let i = 4;
+  let i = 3;
   if (userAddress) {
-    userBalance = bmath.bnum(response[4]);
-    i += 1;
+    userBalance = bmath.bnum(response[i++]);
   }
   let chunkResponse = [];
   for (; i < response.length; i += 3) {
@@ -76,7 +73,6 @@ export async function getCurrentPoolData(
     userBalance,
     totalWeight: totalDenorm,
     totalSupply,
-    maxTotalSupply,
     swapFee,
     tokens: tokenInfos
   }

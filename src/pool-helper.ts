@@ -171,7 +171,7 @@ export class PoolHelper {
     return this.pool.initializer;
   }
 
-  get category(): number {
+  get category(): string {
     return this.pool.category;
   }
 
@@ -248,14 +248,12 @@ export class PoolHelper {
       userBalance,
       totalWeight,
       totalSupply,
-      maxTotalSupply,
       swapFee,
       tokens
     } = await getCurrentPoolData(this.provider, this.pool.address, this.tokens, this.userAddress);
     this.userPoolBalance = userBalance;
     this.pool.totalSupply = totalSupply;
     this.pool.totalWeight = totalWeight;
-    this.pool.maxTotalSupply = maxTotalSupply;
     this.pool.swapFee = swapFee;
     for (let i = 0; i < tokens.length; i++) {
       const token = this.pool.tokens[i];
@@ -427,7 +425,8 @@ export class PoolHelper {
       this.pool.totalSupply,
       this.pool.totalWeight,
       bnum(poolTokensToBurn),
-      this.pool.swapFee
+      this.pool.swapFee,
+      this.pool.exitFee
     );
     return {
       address,
@@ -460,7 +459,8 @@ export class PoolHelper {
       this.pool.totalSupply,
       this.pool.totalWeight,
       amountOut,
-      this.pool.swapFee
+      this.pool.swapFee,
+      this.pool.exitFee
     );
     return {
       address,
@@ -491,7 +491,7 @@ export class PoolHelper {
       denorms.push(new BigNumber(denorm));
     }
     const poolAmountOut = bnum(poolTokensToBurn);
-    const amounts = calcAllOutGivenPoolIn(balances, denorms, this.pool.totalSupply, poolAmountOut);
+    const amounts = calcAllOutGivenPoolIn(balances, denorms, this.pool.totalSupply, poolAmountOut, this.pool.exitFee);
     return amounts.reduce((arr, amount, i) => [
       ...arr,
       {
