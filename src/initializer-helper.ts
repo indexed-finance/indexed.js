@@ -36,7 +36,7 @@ export class InitializerHelper {
 
   constructor(
     provider: any,
-    public chainID: number,
+    public network: 'mainnet' | 'rinkeby',
     public pool: UninitializedPool,
     public userAddress?: string
   ) {
@@ -84,8 +84,7 @@ export class InitializerHelper {
   }
 
   async getOracle(): Promise<Contract> {
-    const network = this.chainID == 1 ? 'mainnet' : 'rinkeby';
-    const oracleAddress = deployments[network].uniswapOracle;
+    const oracleAddress = deployments[this.network].uniswapOracle;
     const oracleABI = require('./abi/IIndexedUniswapV2Oracle.json');
     return new Contract(oracleAddress, oracleABI, this.provider);
   }

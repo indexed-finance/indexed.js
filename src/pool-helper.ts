@@ -3,7 +3,7 @@ import { Pair, Token as UniswapToken, TokenAmount as UniswapTokenAmount } from "
 import { Contract } from "ethers";
 import { getAddress } from "ethers/lib/utils";
 
-import { getPoolSnapshots, getPoolUpdate, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from "./subgraph";
+import { getPoolSnapshots, getPoolUpdate } from "./subgraph";
 import { toProvider } from "./utils/provider";
 import {
   bnum,
@@ -55,7 +55,7 @@ export class PoolHelper {
 
   constructor(
     provider: any,
-    public chainID: number,
+    public network: 'mainnet' | 'rinkeby',
     public pool: InitializedPool,
     public userAddress?: string
   ) {
@@ -68,7 +68,7 @@ export class PoolHelper {
 
   async updateUniswap() {
     this.lastUpdateUniswap = new Date().getTime();
-    let weth = getUniswapWethType(this.chainID);
+    let weth = getUniswapWethType(this.network);
     let pool = this.uniswapPoolTokenType;
     const pair = await getPair(this.provider, weth, pool);
     if (pair) {
@@ -99,7 +99,7 @@ export class PoolHelper {
     const pair = this.ethUniswapPair;
     if (!pair) return null;
     const isPoolToken = tokenIn.toLowerCase() == this.address.toLowerCase();
-    const input = isPoolToken ? this.uniswapPoolTokenType : getUniswapWethType(this.chainID);
+    const input = isPoolToken ? this.uniswapPoolTokenType : getUniswapWethType(this.network);
     const amt = new UniswapTokenAmount(input, toBN(amountIn).toString(10));
     const amountOut = pair.getOutputAmount(amt);
     const bnAmount = toBN(bigintToHex(amountOut[0].raw));
@@ -135,7 +135,7 @@ export class PoolHelper {
     const pair = this.ethUniswapPair;
     if (!pair) return null;
     const isPoolToken = tokenOut.toLowerCase() == this.address.toLowerCase();
-    const output = isPoolToken ? this.uniswapPoolTokenType : getUniswapWethType(this.chainID);
+    const output = isPoolToken ? this.uniswapPoolTokenType : getUniswapWethType(this.network);
     const amt = new UniswapTokenAmount(output, toBN(amountOut).toString(10));
     const amountIn = pair.getInputAmount(amt);
     const bnAmount = toBN(bigintToHex(amountIn[0].raw));
@@ -155,6 +155,10 @@ export class PoolHelper {
       displayAmountIn,
       price
     }
+  }
+
+  get chainID(): number {
+    return this.network === 'mainnet' ? 1 : 4;
   }
 
   get uniswapPoolTokenType(): UniswapToken {
@@ -213,8 +217,7 @@ export class PoolHelper {
   }
 
   async getSnapshots(days: number): Promise<PoolDailySnapshot[]> {
-    let url = (this.chainID == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
-    return getPoolSnapshots(url, this.address, days);
+    return getPoolSnapshots(this.network, this.address, days);
   }
 
   getUserTokenData(address: string, amount: BigNumber): {
@@ -276,8 +279,7 @@ export class PoolHelper {
   }
 
   async updateSnapshotAndPrices(): Promise<void> {
-    let url = (this.chainID == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
-    const { snapshot, tokenPrices } = await getPoolUpdate(url, this.address);
+    const { snapshot, tokenPrices } = await getPoolUpdate(this.network, this.address);
     const lastSnapshot = this.pool.snapshots[this.pool.snapshots.length - 1];
     if (lastSnapshot.date == snapshot.date) {
       this.pool.snapshots[this.pool.snapshots.length - 1] = snapshot;

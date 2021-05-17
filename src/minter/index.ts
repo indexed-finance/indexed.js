@@ -40,7 +40,7 @@ export default class Minter {
 
   protected constructor(
     public provider: Provider,
-    public chainID: number,
+    public network: 'mainnet' | 'rinkeby',
     public inputTokens: Token[],
     public poolTokens: Token[],
     public helper: PoolHelper
@@ -65,18 +65,18 @@ export default class Minter {
   }
   
   get wethAddress(): string {
-    return getWethAddress(this.chainID);
+    return getWethAddress(this.network);
   }
 
   get minterAddress(): string {
-    return this.chainID == 1 ? '0xfb6Ac20d38A1F0C4f90747CA0745E140bc17E4C3' : '0x5A8a169a86A63741A769de61E258848746A84094';
+    return this.network === 'mainnet' ? '0xfb6Ac20d38A1F0C4f90747CA0745E140bc17E4C3' : '0x5A8a169a86A63741A769de61E258848746A84094';
   }
 
   async getGasPrice(): Promise<number> {
     if (this.timestamp - (this.lastGasPriceUpdate || 0) >= 60) {
       this.lastGasPriceUpdate = this.timestamp;
       let curProm = this.waitForUpdate;
-      let newProm = getGasPrice(this.chainID).then((price) => this.lastGasPrice = price);
+      let newProm = getGasPrice(this.network).then((price) => this.lastGasPrice = price);
       this.waitForUpdate = Promise.all([ curProm, newProm ]).then(() => {})
     }
     await this.waitForUpdate;
@@ -173,7 +173,7 @@ export default class Minter {
 
   getPoolTokenAmount(helper: PoolHelper, amountHex: string): TokenAmount {
     return new TokenAmount(
-      new Token(this.chainID, getAddress(helper.address), 18, helper.pool.symbol, helper.pool.name),
+      new Token(this.network === 'mainnet' ? 1 : 4, getAddress(helper.address), 18, helper.pool.symbol, helper.pool.name),
       toBN(amountHex).toString(10)
     );
   }
@@ -622,8 +622,9 @@ export default class Minter {
     tokenInputs: TokenInput[],
     helper: PoolHelper
   ): Promise<Minter> {
+    const network = chainID === 1 ? 'mainnet' : 'rinkeby'
     const provider = toProvider(provider_);
-    let weth = getWethAddress(chainID);
+    let weth = getWethAddress(network);
     if (
       !(tokenInputs.find(
         t => t.address.toLowerCase() == weth.toLowerCase()
@@ -634,7 +635,7 @@ export default class Minter {
     let poolHasToken = (address: string) => !!(helper.tokens.find(t => t.address.toLowerCase() == address.toLowerCase()));
     return new Minter(
       provider,
-      chainID,
+      network,
       toTokens(chainID, tokenInputs.filter(t => !poolHasToken(t.address))),
       toTokens(chainID, helper.tokens),
       helper

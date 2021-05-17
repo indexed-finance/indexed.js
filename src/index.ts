@@ -1,4 +1,4 @@
-import { getPools, getStakingPools, INDEXED_RINKEBY_SUBGRAPH_URL, INDEXED_SUBGRAPH_URL } from './subgraph';
+import { getPools, getStakingPools } from './subgraph';
 export * from './multicall';
 import * as bmath from './bmath';
 import { UninitializedPool } from './types';
@@ -16,16 +16,15 @@ export async function getAllHelpers(provider_: any, userAddress?: string): Promi
   uninitialized: InitializerHelper[],
 }> {
   const provider = toProvider(provider_);
-  const chainID = (await provider.getNetwork()).chainId;
-  let url = (chainID == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
-  const poolDatas = await getPools(url);
+  const network = (await provider.getNetwork()).name as 'mainnet' | 'rinkeby';
+  const poolDatas = await getPools(network);
   const initialized: PoolHelper[] = [];
   const uninitialized: InitializerHelper[] = [];
   for (let poolData of poolDatas) {
     if (poolData.isPublic) {
-      initialized.push(new PoolHelper(provider, chainID, poolData, userAddress));
+      initialized.push(new PoolHelper(provider, network, poolData, userAddress));
     } else {
-      uninitialized.push(new InitializerHelper(provider, chainID, poolData as UninitializedPool, userAddress));
+      uninitialized.push(new InitializerHelper(provider, network, poolData as UninitializedPool, userAddress));
     }
   }
   return { initialized, uninitialized };
@@ -33,8 +32,7 @@ export async function getAllHelpers(provider_: any, userAddress?: string): Promi
 
 export async function getStakingHelpers(provider_: any, userAddress?: string): Promise<StakingPoolHelper[]> {
   const provider = toProvider(provider_);
-  const chainID = (await provider.getNetwork()).chainId;
-  let url = (chainID == 1) ? INDEXED_SUBGRAPH_URL : INDEXED_RINKEBY_SUBGRAPH_URL;
-  const stakingPools = await getStakingPools(url);
-  return stakingPools.map((pool) => new StakingPoolHelper(provider, chainID, pool, userAddress));
+  const network = (await provider.getNetwork()).name as 'mainnet' | 'rinkeby';
+  const stakingPools = await getStakingPools(network);
+  return stakingPools.map((pool) => new StakingPoolHelper(provider, network, pool, userAddress));
 }

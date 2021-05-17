@@ -32,7 +32,7 @@ export function getPair(provider: Provider, tokenA: Token, tokenB: Token): Promi
   }
 }
 
-export function getUniswapWethType(chainID: number): Token {
-  const address = getWethAddress(chainID);
-  return new Token(chainID, address, 18, 'WETH', 'WETH9');
+export function getUniswapWethType(network: 'mainnet' | 'rinkeby'): Token {
+  const address = getWethAddress(network);
+  return new Token(network === 'mainnet' ? 1 : 4, address, 18, 'WETH', 'WETH9');
 }

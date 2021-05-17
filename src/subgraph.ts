@@ -1,114 +1,27 @@
-import { DEGEN } from './constants';
-import fetch from 'isomorphic-fetch';
+import {
+  IndexedStakingSubgraphClient,
+  IndexedCoreSubgraphClient
+} from '@indexed-finance/subgraph-clients';
+import {
+  IndexPoolData,
+  DailyPoolSnapshotPartialData,
+  NdxStakingPoolData,
+} from '@indexed-finance/subgraph-clients/dist/core/types';
+import { AllStakingInfoData } from '@indexed-finance/subgraph-clients/dist/staking/types'
 import * as bmath from './bmath';
 import { Pool, PoolDailySnapshot, StakingPool, Token } from './types';
-import { BigNumber, toTokenAmount } from './utils/bignumber';
+import { BigNumber } from './utils/bignumber';
 
-export const INDEXED_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed';
-export const INDEXED_RINKEBY_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/indexed-finance/indexed-rinkeby';
-export const UNISWAP_SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2';
-export const UNISWAP_SUBGRAPH_URL_RINKEBY = 'https://api.thegraph.com/subgraphs/name/samgos/uniswap-v2-rinkeby';
-
-const poolQuery = `
-id
-category {
-  id
-}
-size
-name
-symbol
-isPublic
-totalSupply
-totalWeight
-swapFee
-exitFee
-feesTotalUSD
-totalValueLockedUSD
-totalVolumeUSD
-totalSwapVolumeUSD
-tokensList
-poolInitializer {
-  id
-  totalCreditedWETH
-  tokens {
-    token {
-      id
-      decimals
-      name
-      symbol
-      priceUSD
-    }
-    balance
-    targetBalance
-    amountRemaining
-  }
-}
-tokens {
-  id
-  token {
-    id
-    decimals
-    name
-    symbol
-    priceUSD
-  }
-  ready
-  balance
-  minimumBalance
-  denorm
-  desiredDenorm
-}
-dailySnapshots(orderBy: date, orderDirection: desc, first: 90) {
-  id
-  date
-  value
-  totalSupply
-  feesTotalUSD
-  totalValueLockedUSD
-  totalSwapVolumeUSD
-  totalVolumeUSD
-}
-`;
-
-const executeQuery = async (query: string, url: string = INDEXED_SUBGRAPH_URL): Promise<any> => {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      query
-    }),
-  });
-  const { data } = await response.json();
-  return data;
+export async function getPools(network: 'mainnet' | 'rinkeby'): Promise<Pool[]> {
+  const client = IndexedCoreSubgraphClient.forNetwork(network)
+  const indexPools = await client.getAllIndexPools()
+  return indexPools.map(parsePool);
 }
 
-export async function getPools(url: string): Promise<Pool[]> {
-  const query = `
-    {
-      indexPools (first: 1000) {
-        ${poolQuery}
-      }
-    }
-  `;
-
-  const { indexPools } = await executeQuery(query, url)
-  return parsePoolData(indexPools);
-}
-
-export async function getPool(url: string, address: string): Promise<Pool> {
-  const query = `
-    {
-      indexPool(id: "${address}") {
-        ${poolQuery}
-      }
-    }
-  `;
-
-  const { indexPool } = await executeQuery(query, url)
-  const [pool] = await parsePoolData([ indexPool ]);
+export async function getPool(network: 'mainnet' | 'rinkeby', address: string): Promise<Pool> {
+  const client = IndexedCoreSubgraphClient.forNetwork(network)
+  const indexPool = await client.getIndexPool(address)
+  const pool = parsePool(indexPool)
   return pool;
 }
 
@@ -121,139 +34,68 @@ const toBaseToken = (t): Token => ({
   priceUSD: +(t.token.priceUSD)
 });
 
-export const parsePoolData = (
-  pools
-): Pool[] => {
-  let poolData: Pool[] = [];
-  pools.forEach((p) => {
-    let obj: any = {
-      category: p.category.id,
-      address: p.id,
-      name: p.name,
-      symbol: p.symbol,
-      size: p.size,
-      isPublic: p.isPublic,
-      totalSupply: bmath.bnum(p.totalSupply),
-      totalVolumeUSD: bmath.bnum(p.totalVolumeUSD),
-      totalWeight: bmath.bnum(p.totalWeight),
-      swapFee: p.isPublic ? bmath.scale(bmath.bnum(p.swapFee), 18) : bmath.bnum(0),
-      exitFee: bmath.scale(bmath.bnum(p.exitFee), 18)
-    };
-    if (p.isPublic) {
-      let tokenIndices = p.tokensList.reduce((tks, address, i) => ({
-        ...tks, [address]: i
-      }), {});
-      obj.feesTotalUSD = p.feesTotalUSD;
-      obj.totalValueLockedUSD = p.totalValueLockedUSD;
-      obj.totalSwapVolumeUSD = p.totalSwapVolumeUSD;
-      obj.tokens = new Array(p.tokens.length).fill(null);
-      obj.initializer = p.poolInitializer.id;
-      obj.snapshots = parsePoolSnapshots(p.dailySnapshots);
-      p.tokens.forEach((t) => {
-        let token: any = {
-          ...toBaseToken(t),
-          ready: t.ready,
-          balance: bmath.bnum(t.balance),
-          usedBalance: t.ready ? bmath.bnum(t.balance) : bmath.bnum(t.minimumBalance),
-          weight: bmath.scale(
-            bmath.bnum(t.denorm).div(obj.totalWeight),
-            18
-          ),
-          denorm: bmath.bnum(t.denorm),
-          desiredWeight: bmath.scale(
-            bmath.bnum(t.desiredDenorm).div(obj.totalWeight),
-            18
-          ),
-          desiredDenorm: bmath.bnum(t.desiredDenorm),
-        };
-        if (token.ready) {
-          token.usedDenorm = token.denorm;
-          token.usedWeight = token.weight;
-        } else {
-          token.usedDenorm = bmath.MIN_WEIGHT;
-          token.usedWeight = bmath.bnum(bmath.MIN_WEIGHT).div(obj.totalWeight);
-        }
-        if (t.minimumBalance) {
-          token.minimumBalance = bmath.bnum(token.usedBalance);
-        }
-        let index = tokenIndices[token.address];
-        obj.tokens[index] = token;
-      });
-    } else {
-      obj.initializer = {
-        address: p.poolInitializer.id,
-        pool: obj.address,
-        totalCreditedWETH: bmath.bnum(p.poolInitializer.totalCreditedWETH),
-        tokens: []
-      };
-      p.poolInitializer.tokens.forEach((t) => {
-        obj.initializer.tokens.push({
-          ...toBaseToken(t),
-          targetBalance: bmath.bnum(t.targetBalance),
-          amountRemaining: bmath.bnum(t.amountRemaining)
-        })
-      });
-    }
-    poolData.push(obj);
-  });
+// const tokenDayDataQuery = (tokenAddress, days) => `
+// {
+  // tokenDayDatas(orderBy: date, orderDirection: desc, first: ${days}, where: { token: "${tokenAddress}" }) {
+    // date
+    // priceUSD
+  // }
+// }
+// `
 
-  return poolData;
-};
-
-const tokenDayDataQuery = (tokenAddress, days) => `
-{
-  tokenDayDatas(orderBy: date, orderDirection: desc, first: ${days}, where: { token: "${tokenAddress}" }) {
-    date
-    priceUSD
-  }
-}
-`
-
-export async function getTokenPrice(url: string, address: string): Promise<BigNumber> {
-  const { tokenDayDatas } = await executeQuery(tokenDayDataQuery(address, 1), url);
-  const tokenDayData = tokenDayDatas[0];
-  return bmath.bnum(tokenDayData.priceUSD);
+export async function getTokenPrice(network: 'mainnet' | 'rinkeby', address: string): Promise<BigNumber> {
+  return bmath.bnum(0);
 }
 
-const poolSnapshotsQuery = (poolAddress: string, days: number) => `
-{
-  dailyPoolSnapshots(orderBy: date, orderDirection: desc, first: ${days}, where: { pool: "${poolAddress}" }) {
-    id
-    date
-    value
-    totalSupply
-    feesTotalUSD
-    totalValueLockedUSD
-    totalSwapVolumeUSD
-    totalVolumeUSD
-  }
-}
-`
-
-export async function getPoolSnapshots(url: string, poolAddress: string, days: number): Promise<PoolDailySnapshot[]> {
-  const { dailyPoolSnapshots } = await executeQuery(poolSnapshotsQuery(poolAddress, days + 1), url);
+export async function getPoolSnapshots(network: 'mainnet' | 'rinkeby', poolAddress: string, days: number): Promise<PoolDailySnapshot[]> {
+  const client = IndexedCoreSubgraphClient.forNetwork(network)
+  const dailyPoolSnapshots = await client.getPoolSnapshots(poolAddress, days)
   return parsePoolSnapshots(dailyPoolSnapshots);
 }
 
-export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
+export async function getStakingPools(network: 'mainnet' | 'rinkeby'): Promise<StakingPool[]> {
+  const client = IndexedCoreSubgraphClient.forNetwork(network)
+  const ndxStakingPools = await client.getAllStakingPools()
+  // const { ndxStakingPools } = await executeQuery(stakingQuery(), url);
+  return ndxStakingPools.map(parseStakingPool);
+}
+
+export async function getPoolUpdate(network: 'mainnet' | 'rinkeby', address: string): Promise<PoolUpdate> {
+  const client = IndexedCoreSubgraphClient.forNetwork(network)
+  const result = await client.getPoolUpdate(network)
+  return {
+    snapshot: {
+      ...result.snapshot,
+      totalSupply: +result.snapshot.totalSupply
+    },
+    tokenPrices: result.tokenPrices
+  };
+}
+
+export const getNewStakingInfo = async (network: 'mainnet' | 'rinkeby'): Promise<AllStakingInfoData> => {
+  const client = IndexedStakingSubgraphClient.forNetwork(network);
+  return client.getStakingInfo();
+}
+
+export const parsePoolSnapshots = (snapshots_: DailyPoolSnapshotPartialData[]): PoolDailySnapshot[] => {
   let snapshots = snapshots_.reverse();
   let retArr: PoolDailySnapshot[] = [];
   let snapshot0 = snapshots[0];
   let lastDate = +(snapshot0.date);
-  let lastSwapVolumeTotal = +(snapshot0.totalSwapVolumeUSD);
-  let lastVolumeTotal = +(snapshot0.totalVolumeUSD);
-  let lastFeesTotal = +(snapshot0.feesTotalUSD);
+  let lastSwapVolumeTotal = snapshot0.totalSwapVolumeUSD;
+  let lastVolumeTotal = snapshot0.totalVolumeUSD;
+  let lastFeesTotal = snapshot0.feesTotalUSD;
   let lastSupply = +(snapshot0.totalSupply);
-  let lastValue = +(snapshot0.value);
-  let lastTotalValue = +(snapshot0.totalValueLockedUSD)
+  let lastValue = snapshot0.value;
+  let lastTotalValue = snapshot0.totalValueLockedUSD
   if (snapshots_.length == 1) {
     retArr.push({
       date: lastDate,
-      value: +(snapshot0.value),
+      value: snapshot0.value,
       totalSupply: +(snapshot0.totalSupply),
       dailyFeesUSD: lastFeesTotal,
       totalVolumeUSD: lastVolumeTotal,
-      totalValueLockedUSD: +(snapshot0.totalValueLockedUSD),
+      totalValueLockedUSD: snapshot0.totalValueLockedUSD,
       dailySwapVolumeUSD: lastSwapVolumeTotal
     });
   } else {
@@ -315,39 +157,10 @@ export const parsePoolSnapshots = (snapshots_): PoolDailySnapshot[] => {
   return retArr;
 }
 
-const stakingQuery = () => `
-{
-  ndxStakingPools(first: 20) {
-    id
-    isWethPair
-    startsAt
-		isReady
-    indexPool
-    stakingToken
-    totalSupply
-    periodFinish
-    lastUpdateTime
-    totalRewards
-    claimedRewards
-    rewardRate
-    rewardPerTokenStored
-  }
-}
-`;
-
-export async function getStakingPools(url: string): Promise<StakingPool[]> {
-  const { ndxStakingPools } = await executeQuery(stakingQuery(), url);
-  const pools: StakingPool[] = ndxStakingPools.map(parseStakingPool);
-  if (!pools.some(p => p.indexPool.toLowerCase() == DEGEN.toLowerCase())) {
-    pools.push(DEGEN_STAKING_SHIM);
-  }
-  return pools;
-}
-
-export const parseStakingPool = (data: any): StakingPool => {
-  const periodStart =  +(data.startsAt);
-  const periodFinish = +(data.periodFinish);
-  const lastUpdateTime = +(data.lastUpdateTime);
+export const parseStakingPool = (data: NdxStakingPoolData): StakingPool => {
+  const periodStart =  data.startsAt;
+  const periodFinish = data.periodFinish;
+  const lastUpdateTime = data.lastUpdateTime;
   const timestamp = new Date().getTime() / 1000;
   return {
     address: data.id,
@@ -368,62 +181,79 @@ export const parseStakingPool = (data: any): StakingPool => {
   };
 };
 
-const poolUpdateQuery = (address: string) => `
-{
-  indexPool(id: "${address}") {
-    dailySnapshots(orderBy: date, orderDirection: desc, first: 1) {
-      id
-      date
-      value
-      totalSupply
-      feesTotalUSD
-      totalValueLockedUSD
-      totalSwapVolumeUSD
-      totalVolumeUSD
-    }
-    tokens {
-      token {
-        id
-        priceUSD
+export const parsePool = (p: IndexPoolData): Pool => {
+  let obj: any = {
+    category: p.category.id,
+    address: p.id,
+    name: p.name,
+    symbol: p.symbol,
+    size: p.size,
+    isPublic: p.isPublic,
+    totalSupply: bmath.bnum(p.totalSupply),
+    totalVolumeUSD: bmath.bnum(p.totalVolumeUSD),
+    totalWeight: bmath.bnum(p.totalWeight),
+    swapFee: p.isPublic ? bmath.scale(bmath.bnum(p.swapFee), 18) : bmath.bnum(0),
+    exitFee: bmath.scale(bmath.bnum(p.exitFee), 18)
+  };
+  if (p.isPublic) {
+    let tokenIndices = p.tokensList.reduce((tks, address, i) => ({
+      ...tks, [address]: i
+    }), {});
+    obj.feesTotalUSD = p.feesTotalUSD;
+    obj.totalValueLockedUSD = p.totalValueLockedUSD;
+    obj.totalSwapVolumeUSD = p.totalSwapVolumeUSD;
+    obj.tokens = new Array(p.tokens.length).fill(null);
+    obj.initializer = p.poolInitializer.id;
+    obj.snapshots = parsePoolSnapshots(p.dailySnapshots);
+    p.tokens.forEach((t) => {
+      let token: any = {
+        ...toBaseToken(t),
+        ready: t.ready,
+        balance: bmath.bnum(t.balance),
+        usedBalance: t.ready ? bmath.bnum(t.balance) : bmath.bnum(t.minimumBalance),
+        weight: bmath.scale(
+          bmath.bnum(t.denorm).div(obj.totalWeight),
+          18
+        ),
+        denorm: bmath.bnum(t.denorm),
+        desiredWeight: bmath.scale(
+          bmath.bnum(t.desiredDenorm).div(obj.totalWeight),
+          18
+        ),
+        desiredDenorm: bmath.bnum(t.desiredDenorm),
+      };
+      if (token.ready) {
+        token.usedDenorm = token.denorm;
+        token.usedWeight = token.weight;
+      } else {
+        token.usedDenorm = bmath.MIN_WEIGHT;
+        token.usedWeight = bmath.bnum(bmath.MIN_WEIGHT).div(obj.totalWeight);
       }
-    }
+      if (t.minimumBalance) {
+        token.minimumBalance = bmath.bnum(token.usedBalance);
+      }
+      let index = tokenIndices[token.address];
+      obj.tokens[index] = token;
+    });
+  } else {
+    obj.initializer = {
+      address: p.poolInitializer.id,
+      pool: obj.address,
+      totalCreditedWETH: bmath.bnum(p.poolInitializer.totalCreditedWETH),
+      tokens: []
+    };
+    p.poolInitializer.tokens.forEach((t) => {
+      obj.initializer.tokens.push({
+        ...toBaseToken(t),
+        targetBalance: bmath.bnum(t.targetBalance),
+        amountRemaining: bmath.bnum(t.amountRemaining)
+      })
+    });
   }
+  return obj;
 }
-`;
 
 type PoolUpdate = {
   snapshot: PoolDailySnapshot;
   tokenPrices: { [address: string]: number }
-}
-
-export async function getPoolUpdate(url: string, address: string): Promise<PoolUpdate> {
-  const query = poolUpdateQuery(address.toLowerCase());
-  const { indexPool: { dailySnapshots, tokens } } = await executeQuery(query, url);
-  const [snapshot] = parsePoolSnapshots(dailySnapshots);
-  const tokenPrices = tokens.reduce(
-    (obj, t) => ({ ...obj, [t.token.id]: +(t.token.priceUSD) }),
-    {}
-  );
-  return {
-    snapshot,
-    tokenPrices
-  };
-}
-
-export const DEGEN_STAKING_SHIM: StakingPool = {
-  address: '0x649A94e2b3010338508CF50865BaafB1FA07A32c',
-  active: true,
-  isReady: true,
-  hasBegun: false,
-  isWethPair: true,
-  indexPool: DEGEN.toLowerCase(),
-  stakingToken: '0xfaad1072e259b5ed342d3f16277477b46d379abc',
-  totalSupply: bmath.bnum(0),
-  periodStart: 0,
-  periodFinish: 0,
-  lastUpdateTime: 0,
-  totalRewards: toTokenAmount(50000, 18),
-  claimedRewards: bmath.bnum(0),
-  rewardRate: toTokenAmount(50000, 18).div(2592000),
-  rewardPerToken: bmath.bnum(0)
 }
