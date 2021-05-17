@@ -33,7 +33,7 @@ export async function getAllHelpers(provider_: any, userAddress?: string): Promi
 
 export async function getStakingHelpers(provider_: any, userAddress?: string): Promise<StakingPoolHelper[]> {
   const provider = toProvider(provider_);
-  const network = (await provider.getNetwork()).name as 'mainnet' | 'rinkeby';
+  const network = (await provider.getNetwork()).chainId === 1 ? 'mainnet' : 'rinkeby';
   const stakingPools = await getStakingPools(network);
   return stakingPools.map((pool) => new StakingPoolHelper(provider, network, pool, userAddress));
 }
