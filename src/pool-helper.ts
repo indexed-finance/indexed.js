@@ -509,6 +509,21 @@ export class PoolHelper {
     ], []);
   }
 
+  async calcSpotPrice(tokenIn_: string, tokenOut_: string): Promise<BigNumber> {
+    if (this.shouldUpdate) {
+      this.waitForUpdate = this.update();
+    }
+    await this.waitForUpdate;
+    const tokenIn = this.getTokenByAddress(tokenIn_);
+    const tokenOut = this.getTokenByAddress(tokenOut_);
+    if (!tokenIn.ready) {
+      const realToMinRatio = bdiv(tokenIn.usedBalance.minus(tokenIn.balance), tokenIn.minimumBalance);
+      const weightPremium = bmul(MIN_WEIGHT.div(10), realToMinRatio);
+      tokenIn.usedDenorm = MIN_WEIGHT.plus(weightPremium);
+    }
+    return calcSpotPrice(tokenIn.balance, tokenIn.usedDenorm, tokenOut.balance, tokenOut.usedDenorm, this.pool.swapFee);
+  }
+
   async calcOutGivenIn(
     tokenIn_: string,
     tokenOut_: string,
