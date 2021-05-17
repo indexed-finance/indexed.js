@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@indexed-finance/multicall": "^1.0.6",
+    "@indexed-finance/subgraph-clients": "0.0.5",
     "@uniswap/sdk": "^3.0.3",
     "bignumber.js": "^9.0.0",
     "isomorphic-fetch": "^2.2.1"
