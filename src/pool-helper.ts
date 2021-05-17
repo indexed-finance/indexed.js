@@ -6,7 +6,10 @@ import { getAddress } from "ethers/lib/utils";
 import { getPoolSnapshots, getPoolUpdate } from "./subgraph";
 import { toProvider } from "./utils/provider";
 import {
+  bdiv,
+  bmul,
   bnum,
+  BONE,
   calcAllInGivenPoolOut,
   calcAllOutGivenPoolIn,
   calcInGivenOut,
@@ -15,7 +18,8 @@ import {
   calcPoolOutGivenSingleIn,
   calcSingleInGivenPoolOut,
   calcSingleOutGivenPoolIn,
-  calcSpotPrice
+  calcSpotPrice,
+  MIN_WEIGHT
 } from "./bmath";
 import { getTokenUserData, getCurrentPoolData } from "./multicall";
 import { InitializedPool, PoolDailySnapshot, PoolToken, Token } from "./types";
@@ -64,6 +68,7 @@ export class PoolHelper {
     this.waitForUpdate = this.update();
     this.lastUpdateUniswap = new Date().getTime();
     this.waitForUniswapUpdate = this.updateUniswap();
+    this.pool.exitFee = toBN(0.005).times(BONE);
   }
 
   async updateUniswap() {
@@ -515,6 +520,11 @@ export class PoolHelper {
     await this.waitForUpdate;
     const tokenIn = this.getTokenByAddress(tokenIn_);
     const tokenOut = this.getTokenByAddress(tokenOut_);
+    if (!tokenIn.ready) {
+      const realToMinRatio = bdiv(tokenIn.usedBalance.minus(tokenIn.balance), tokenIn.minimumBalance);
+      const weightPremium = bmul(MIN_WEIGHT.div(10), realToMinRatio);
+      tokenIn.usedDenorm = MIN_WEIGHT.plus(weightPremium);
+    }
     const amountOut = calcOutGivenIn(
       tokenIn.usedBalance,
       tokenIn.usedDenorm,
@@ -550,7 +560,12 @@ export class PoolHelper {
       this.waitForUpdate = this.update();
     }
     await this.waitForUpdate;
-    const tokenIn = this.getTokenByAddress(tokenIn_);
+    const tokenIn = {...this.getTokenByAddress(tokenIn_)};
+    if (!tokenIn.ready) {
+      const realToMinRatio = bdiv(tokenIn.usedBalance.minus(tokenIn.balance), tokenIn.minimumBalance);
+      const weightPremium = bmul(MIN_WEIGHT.div(10), realToMinRatio);
+      tokenIn.usedDenorm = MIN_WEIGHT.plus(weightPremium);
+    }
     const tokenOut = this.getTokenByAddress(tokenOut_);
     const amountIn = calcInGivenOut(
       tokenIn.usedBalance,
