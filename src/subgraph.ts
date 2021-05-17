@@ -62,7 +62,7 @@ export async function getStakingPools(network: 'mainnet' | 'rinkeby'): Promise<S
 
 export async function getPoolUpdate(network: 'mainnet' | 'rinkeby', address: string): Promise<PoolUpdate> {
   const client = IndexedCoreSubgraphClient.forNetwork(network)
-  const result = await client.getPoolUpdate(network)
+  const result = await client.getPoolUpdate(address)
   return {
     snapshot: {
       ...result.snapshot,
