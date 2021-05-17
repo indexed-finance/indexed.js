@@ -17,7 +17,7 @@ export async function getAllHelpers(provider_: any, userAddress?: string): Promi
   uninitialized: InitializerHelper[],
 }> {
   const provider = toProvider(provider_);
-  const network = (await provider.getNetwork()).name as 'mainnet' | 'rinkeby';
+  const network = (await provider.getNetwork()).chainId === 1 ? 'mainnet' : 'rinkeby';
   const poolDatas = await getPools(network);
   const initialized: PoolHelper[] = [];
   const uninitialized: InitializerHelper[] = [];
