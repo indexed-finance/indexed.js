@@ -62,6 +62,7 @@ export class NewStakingHelper {
   }
 
   async update() {
+    const userAddress = this.userAddress;
     const calls: CallInput[] = [];
     const fromBlock = [...this.pools].sort((a, b) => b.lastRewardBlock - a.lastRewardBlock)[0].lastRewardBlock;
     const toBlock = fromBlock + BLOCKS_PER_DAY;
@@ -86,30 +87,30 @@ export class NewStakingHelper {
         interface: IERC20Interface,
         args: [this.meta.id]
       })
-      if (this.userAddress) {
+      if (userAddress) {
         calls.push({
           target: this.meta.id,
           function: 'userInfo',
-          args: [pool.id, this.userAddress],
+          args: [pool.id, userAddress],
           interface: MultiTokenStakingInterface
         })
         calls.push({
           target: this.meta.id,
           function: 'pendingRewards',
-          args: [pool.id, this.userAddress],
+          args: [pool.id, userAddress],
           interface: MultiTokenStakingInterface
         })
         calls.push({
           target: pool.token,
           function: 'balanceOf',
           interface: IERC20Interface,
-          args: [this.userAddress]
+          args: [userAddress]
         })
         calls.push({
           target: pool.token,
           function: 'allowance',
           interface: IERC20Interface,
-          args: [this.userAddress, this.meta.id]
+          args: [userAddress, this.meta.id]
         })
       }
     }
@@ -117,7 +118,7 @@ export class NewStakingHelper {
     const result = await multi.multiCall(calls);
     this.totalRewardsPerDay = toBN(result[0]);
     this.meta.totalAllocPoint = 0;
-    let increment = this.userAddress ? 6 : 2;
+    let increment = userAddress ? 6 : 2;
     for (let i = 0; i < this.pools.length; i++) {
       const rI = i * increment;
       const pool = this.pools[i]
@@ -127,7 +128,7 @@ export class NewStakingHelper {
       pool.allocPoint = allocPoint;
       this.meta.totalAllocPoint += allocPoint;
       pool.totalStaked = toBN(result[rI + 2]);
-      if (this.userAddress) {
+      if (userAddress) {
         const userInfo = result[rI + 3];
         pool.userStakedBalance = toBN(userInfo[0])
         pool.userEarnedRewards = toBN(result[rI + 4])
