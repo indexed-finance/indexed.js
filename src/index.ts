@@ -10,6 +10,7 @@ export { bmath, getPools, PoolHelper };
 export { UniswapHelper } from './uniswap-helper';
 import { StakingPoolHelper } from './staking';
 export { StakingPoolHelper };
+export { NewStakingHelper } from './new-staking';
 
 export async function getAllHelpers(provider_: any, userAddress?: string): Promise<{
   initialized: PoolHelper[],
